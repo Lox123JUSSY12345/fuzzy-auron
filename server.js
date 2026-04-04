@@ -56,12 +56,25 @@ app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'profile.html'));
 });
 
+let currentAdminUrl = '';
+
+// Эндпоинт для получения админ-ссылки
+app.get('/api/v1/admin/get-link', (req, res) => {
+  const host = req.get('host');
+  const protocol = req.protocol;
+  res.json({
+    adminUrl: `${protocol}://${host}/${currentAdminUrl}.html`,
+    expiresIn: '24 hours'
+  });
+});
+
 initDatabase().then(() => {
   const db = getDatabase();
   
   // Создаем админ-сессию при запуске
   const crypto = require('crypto');
   const sessionUrl = crypto.randomBytes(8).toString('hex');
+  currentAdminUrl = sessionUrl;
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -76,9 +89,11 @@ initDatabase().then(() => {
   );
 
   app.listen(PORT, () => {
-    console.log(`\nСайт: http://localhost:${PORT}`);
+    console.log(`\n✅ Сервер запущен!`);
+    console.log(`Сайт: http://localhost:${PORT}`);
     console.log(`Эндпоинты: http://localhost:${PORT}/api/v1`);
-    console.log(`Админ-панель: http://localhost:${PORT}/${sessionUrl}.html\n`);
+    console.log(`Админ-панель: http://localhost:${PORT}/${sessionUrl}.html`);
+    console.log(`Получить админ-ссылку: http://localhost:${PORT}/api/v1/admin/get-link\n`);
   });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
