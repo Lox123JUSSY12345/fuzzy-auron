@@ -7,6 +7,7 @@ const configsRoutes = require('./api/routes/configs');
 const paymentRoutes = require('./api/routes/payment');
 const adminRoutes = require('./api/routes/admin');
 const { initDatabase, getDatabase } = require('./api/database/db');
+const { dbGet, dbRun } = require('./api/database/db-helper');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -26,24 +27,27 @@ app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', adminRoutes);
 
 // Middleware для проверки админ-сессии
-app.get('/:sessionUrl.html', (req, res, next) => {
+app.get('/:sessionUrl.html', async (req, res, next) => {
   const sessionUrl = req.params.sessionUrl;
   
-  // Проверяем является ли это админ-сессией
-  const db = getDatabase();
-  db.get(
-    `SELECT * FROM admin_sessions WHERE session_url = ? AND expires_at > datetime('now')`,
-    [sessionUrl],
-    (err, session) => {
-      if (session) {
-        // Это валидная админ-сессия, отдаем админку
-        res.sendFile(path.join(__dirname, 'admin-panel.html'));
-      } else {
-        // Обычный файл
-        next();
-      }
+  try {
+    // Проверяем является ли это админ-сессией
+    const session = await dbGet(
+      `SELECT * FROM admin_sessions WHERE session_url = ? AND expires_at > datetime('now')`,
+      [sessionUrl]
+    );
+    
+    if (session) {
+      // Это валидная админ-сессия, отдаем админку
+      res.sendFile(path.join(__dirname, 'admin-panel.html'));
+    } else {
+      // Обычный файл
+      next();
     }
-  );
+  } catch (err) {
+    console.error('Error checking admin session:', err);
+    next();
+  }
 });
 
 app.use(express.static('.'));
@@ -88,9 +92,7 @@ app.get('/api/v1/admin/get-link', (req, res) => {
   });
 });
 
-initDatabase().then(() => {
-  const db = getDatabase();
-  
+initDatabase().then(async () => {
   // Создаем админ-сессию при запуске
   const crypto = require('crypto');
   const sessionUrl = crypto.randomBytes(8).toString('hex');
@@ -98,15 +100,14 @@ initDatabase().then(() => {
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
 
-  db.run(
-    `INSERT INTO admin_sessions (session_url, expires_at) VALUES (?, ?)`,
-    [sessionUrl, expiresAt.toISOString()],
-    (err) => {
-      if (err) {
-        console.error('❌ Ошибка создания админ-сессии:', err);
-      }
-    }
-  );
+  try {
+    await dbRun(
+      `INSERT INTO admin_sessions (session_url, expires_at) VALUES (?, ?)`,
+      [sessionUrl, expiresAt.toISOString()]
+    );
+  } catch (err) {
+    console.error('❌ Ошибка создания админ-сессии:', err);
+  }
 
   app.listen(PORT, () => {
     console.log(`\n✅ Сервер запущен!`);
@@ -118,4 +119,5 @@ initDatabase().then(() => {
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   process.exit(1);
+});
 });
