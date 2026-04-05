@@ -989,7 +989,7 @@ table, .pagination {
     transform: scale(1.05);
 }
 
-.camera {
+.avatar-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -1005,18 +1005,18 @@ table, .pagination {
     pointer-events: none;
 }
 
-.ava-wrapper:hover .camera {
+.ava-wrapper:hover .avatar-overlay {
     opacity: 1;
 }
 
-.camera-icon {
+.avatar-overlay i {
     font-size: 24px;
     color: #ffffff;
     transform: translateY(5px);
     transition: all 0.3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
 }
 
-.ava-wrapper:hover .camera-icon {
+.ava-wrapper:hover .avatar-overlay i {
     transform: translateY(0);
 }
 

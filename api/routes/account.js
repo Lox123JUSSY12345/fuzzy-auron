@@ -2,10 +2,44 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { getDatabase } = require('../database/db');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
+
+// Настройка multer для загрузки аватарок
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../../uploads/avatars');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar_${req.userId}_${Date.now()}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Только изображения разрешены'));
+    }
+  }
+});
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -254,6 +288,33 @@ router.get('/download/loader', authMiddleware, (req, res) => {
     }
     
     res.download(loaderPath, 'rockstar-1.0.0.jar');
+  });
+});
+
+router.post('/account/upload-avatar', authMiddleware, upload.single('avatar'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Файл не загружен' });
+  }
+
+  const db = getDatabase();
+  const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+  // Удаляем старую аватарку если она есть
+  db.get('SELECT avatar_url FROM users WHERE id = ?', [req.userId], (err, user) => {
+    if (user && user.avatar_url && user.avatar_url !== '/img/ava.jpg') {
+      const oldAvatarPath = path.join(__dirname, '../..', user.avatar_url);
+      if (fs.existsSync(oldAvatarPath)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+
+    // Обновляем URL аватарки в базе
+    db.run('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.userId], function(err) {
+      if (err) {
+        return res.status(500).json({ error: 'Ошибка при сохранении' });
+      }
+      res.json({ success: true, avatarUrl });
+    });
   });
 });
 

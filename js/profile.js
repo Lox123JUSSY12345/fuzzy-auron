@@ -16,16 +16,18 @@
         function updateProfileUI(accountData) {
             console.log('Updating UI with data:', accountData);
             
+            const avatarUrl = accountData.avatarUrl || '/img/ava.jpg';
+            
             const headerAvatar = document.querySelector('.header-actions .avatar');
             const headerName = document.querySelector('.header-actions .header-name');
-            if (headerAvatar) headerAvatar.src = '/img/ava.jpg';
+            if (headerAvatar) headerAvatar.src = avatarUrl;
             if (headerName) headerName.textContent = accountData.login || '';
 
             const profileAvatar = document.querySelector('.upper-info .avatar');
             const profileName = document.querySelector('.text .name');
             const profileId = document.querySelector('.uid .id');
             
-            if (profileAvatar) profileAvatar.src = '/img/ava.jpg';
+            if (profileAvatar) profileAvatar.src = avatarUrl;
             if (profileName) {
                 profileName.textContent = accountData.login || '';
                 console.log('Set name to:', accountData.login);
@@ -541,6 +543,60 @@
                     alert(error.message);
                 }
             };
+
+            // Обработчик загрузки аватарки
+            const avatarWrapper = document.getElementById('wrapper');
+            const avatarFileInput = document.getElementById('avatar-file-input');
+            
+            if (avatarWrapper && avatarFileInput) {
+                avatarWrapper.addEventListener('click', () => {
+                    avatarFileInput.click();
+                });
+
+                avatarFileInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    if (!file.type.startsWith('image/')) {
+                        alert('Пожалуйста, выберите изображение');
+                        return;
+                    }
+
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Размер файла не должен превышать 5 МБ');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('avatar', file);
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/account/upload-avatar`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${jwtToken}`
+                            },
+                            credentials: 'include',
+                            body: formData
+                        });
+
+                        const data = await response.json();
+                        if (response.ok) {
+                            const newAvatarUrl = data.avatarUrl + '?t=' + Date.now();
+                            document.querySelectorAll('.avatar').forEach(img => {
+                                img.src = newAvatarUrl;
+                            });
+                            if (window.__toast) window.__toast('Аватарка обновлена', 'success');
+                        } else {
+                            throw new Error(data.error || 'Ошибка загрузки');
+                        }
+                    } catch (error) {
+                        alert(error.message);
+                    }
+
+                    avatarFileInput.value = '';
+                });
+            }
         });
     }
     
