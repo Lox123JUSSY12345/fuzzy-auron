@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
 const { body, validationResult } = require('express-validator');
-const { getDatabase } = require('../database/db');
+const { dbGet, dbRun } = require('../database/db-helper');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
@@ -19,36 +19,32 @@ router.post('/signup', [
   }
 
   const { login, email, password } = req.body;
-  const db = getDatabase();
 
   try {
-    // Проверяем существование пользователя
-    const existingUser = await db.query(
-      'SELECT * FROM users WHERE login = $1 OR email = $2',
+    const existingUser = await dbGet(
+      'SELECT * FROM users WHERE login = ? OR email = ?',
       [login, email]
     );
     
-    if (existingUser.rows.length > 0) {
+    if (existingUser) {
       return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatarUrl = `/api/v1/avatar/${Date.now()}`;
 
-    // Создаем пользователя
-    const result = await db.query(
-      'INSERT INTO users (login, email, password, avatar_url) VALUES ($1, $2, $3, $4) RETURNING id',
+    const result = await dbRun(
+      'INSERT INTO users (login, email, password, avatar_url) VALUES (?, ?, ?, ?)',
       [login, email, hashedPassword, avatarUrl]
     );
 
-    const userId = result.rows[0].id;
-    const token = jwt.sign({ id: userId, login }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: result.lastID, login }, JWT_SECRET, { expiresIn: '7d' });
     
     res.status(201).json({
       success: true,
       token,
       user: {
-        id: userId,
+        id: result.lastID,
         login,
         email
       }
@@ -61,19 +57,17 @@ router.post('/signup', [
 
 router.post('/signin', async (req, res) => {
   const { statement, password } = req.body;
-  const db = getDatabase();
 
   try {
-    const result = await db.query(
-      'SELECT * FROM users WHERE login = $1 OR email = $1',
-      [statement]
+    const user = await dbGet(
+      'SELECT * FROM users WHERE login = ? OR email = ?',
+      [statement, statement]
     );
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({ reason: 'Неверный логин или пароль' });
     }
 
-    const user = result.rows[0];
     const isPasswordValid = await bcrypt.compare(password, user.password);
     
     if (!isPasswordValid) {
@@ -106,19 +100,16 @@ router.post('/signin', async (req, res) => {
 
 router.post('/verify-2fa', async (req, res) => {
   const { statement, code } = req.body;
-  const db = getDatabase();
 
   try {
-    const result = await db.query(
-      'SELECT * FROM users WHERE login = $1 OR email = $1',
-      [statement]
+    const user = await dbGet(
+      'SELECT * FROM users WHERE login = ? OR email = ?',
+      [statement, statement]
     );
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({ error: 'Пользователь не найден' });
     }
-
-    const user = result.rows[0];
 
     if (!user.gauth_enabled || !user.gauth_secret) {
       return res.status(400).json({ error: '2FA не настроен' });
