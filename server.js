@@ -52,8 +52,28 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/signin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'signin.html'));
+});
+
+app.get('/signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'signup.html'));
+});
+
 app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'profile.html'));
+});
+
+app.get('/purchase', (req, res) => {
+  res.sendFile(path.join(__dirname, 'purchase.html'));
+});
+
+app.get('/faq', (req, res) => {
+  res.sendFile(path.join(__dirname, 'faq.html'));
+});
+
+app.get('/payment-success', (req, res) => {
+  res.sendFile(path.join(__dirname, 'payment-success.html'));
 });
 
 let currentAdminUrl = '';
