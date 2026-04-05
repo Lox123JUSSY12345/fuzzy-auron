@@ -3,7 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const https = require('https');
-const { getDb } = require('../database/db');
+const { dbGet, dbRun, dbAll } = require('../database/db-helper');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 const CRYPTOBOT_TOKEN = '504363:AAHYQ61JqLa3tWGx9G2zrJiCMp5C2JdIoCB';
@@ -68,30 +68,20 @@ router.post('/payment/create-invoice', authMiddleware, async (req, res) => {
 
         // Проверяем промокод если указан
         if (promocode) {
-            const db = getDb();
-            const promoResult = await new Promise((resolve, reject) => {
-                db.get(
-                    `SELECT * FROM promocodes WHERE code = ? AND active = 1 AND (expires_at IS NULL OR expires_at > datetime('now')) AND (max_uses = 0 OR used_count < max_uses)`,
-                    [promocode.toUpperCase()],
-                    (err, promo) => {
-                        if (err) reject(err);
-                        else resolve(promo);
-                    }
-                );
-            });
+            const promoResult = await dbGet(
+                `SELECT * FROM promocodes WHERE code = ? AND active = 1 AND (expires_at IS NULL OR expires_at > datetime('now')) AND (max_uses = 0 OR used_count < max_uses)`,
+                [promocode.toUpperCase()]
+            );
 
             if (promoResult) {
                 discountPercent = promoResult.discount_percent;
                 finalAmount = amount * (1 - discountPercent / 100);
                 
                 // Увеличиваем счетчик использований
-                db.run(
+                await dbRun(
                     `UPDATE promocodes SET used_count = used_count + 1 WHERE code = ?`,
                     [promocode.toUpperCase()]
                 );
-                
-                // console.log(`Promocode ${promocode} applied: ${discountPercent}% discount`);
-                // console.log(`Original: ${amount}, Final: ${finalAmount}`);
             }
         }
 
@@ -140,10 +130,9 @@ router.post('/payment/create-invoice', authMiddleware, async (req, res) => {
         }
 
         // Сохраняем инвойс в БД
-        const db = getDb();
         const invoiceId = data.result.invoice_id;
         
-        db.run(
+        await dbRun(
             `INSERT INTO invoices (invoice_id, user_id, plan_type, amount, status, created_at) 
              VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
             [invoiceId, userId, planType, amount]
@@ -191,17 +180,11 @@ router.post('/payment/webhook', async (req, res) => {
                 console.error('Error parsing payload:', e);
                 return res.json({ ok: true });
             }
-            
-            const db = getDb();
 
             // Обновляем статус инвойса
-            db.run(
+            await dbRun(
                 `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
-                [invoiceId],
-                (err) => {
-                    if (err) console.error('Error updating invoice:', err);
-                    // else console.log('Invoice updated:', invoiceId);
-                }
+                [invoiceId]
             );
 
             // Выдаем роль beta и подписку
@@ -212,15 +195,9 @@ router.post('/payment/webhook', async (req, res) => {
 
             // console.log(`Updating user ${payload.userId} to beta until ${subUntilStr}`);
 
-            db.run(
+            await dbRun(
                 `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
-                [subUntilStr, payload.userId],
-                (err) => {
-                    if (err) {
-                        console.error('Error updating user:', err);
-                    }
-                    // else console.log(`✅ User ${payload.userId} upgraded to beta until ${subUntilStr}`);
-                }
+                [subUntilStr, payload.userId]
             );
         }
 
@@ -238,75 +215,60 @@ router.get('/payment/check/:invoiceId', authMiddleware, async (req, res) => {
         const { invoiceId } = req.params;
         const userId = req.user.id;
 
-        const db = getDb();
-        
-        db.get(
+        const invoice = await dbGet(
             `SELECT * FROM invoices WHERE invoice_id = ? AND user_id = ?`,
-            [invoiceId, userId],
-            async (err, invoice) => {
-                if (err || !invoice) {
-                    return res.status(404).json({ error: 'Инвойс не найден' });
-                }
-
-                // Проверяем статус через API
-                httpsRequest(`${CRYPTOBOT_API}/getInvoices?invoice_ids=${invoiceId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Crypto-Pay-API-Token': CRYPTOBOT_TOKEN
-                    }
-                }).then(data => {
-                    // console.log('Check invoice response:', data);
-                    
-                    if (data.ok && data.result.items.length > 0) {
-                        const apiInvoice = data.result.items[0];
-                        
-                        // Если оплачен, обновляем пользователя
-                        if (apiInvoice.status === 'paid' && invoice.status !== 'paid') {
-                            // console.log('Invoice is paid, updating user...');
-                            
-                            // Обновляем статус инвойса
-                            db.run(
-                                `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
-                                [invoiceId]
-                            );
-
-                            // Выдаем роль beta и подписку
-                            const subDuration = getPlanDuration(invoice.plan_type);
-                            const subUntil = new Date();
-                            subUntil.setDate(subUntil.getDate() + subDuration);
-                            const subUntilStr = subUntil.toISOString().split('T')[0];
-
-                            db.run(
-                                `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
-                                [subUntilStr, userId],
-                                (err) => {
-                                    if (err) {
-                                        console.error('Error updating user:', err);
-                                    }
-                                    // else console.log(`✅ User ${userId} upgraded to beta until ${subUntilStr}`);
-                                }
-                            );
-                        }
-                        
-                        res.json({
-                            status: apiInvoice.status,
-                            paid: apiInvoice.status === 'paid'
-                        });
-                    } else {
-                        res.json({
-                            status: invoice.status,
-                            paid: invoice.status === 'paid'
-                        });
-                    }
-                }).catch(err => {
-                    console.error('API error:', err);
-                    res.json({
-                        status: invoice.status,
-                        paid: invoice.status === 'paid'
-                    });
-                });
-            }
+            [invoiceId, userId]
         );
+
+        if (!invoice) {
+            return res.status(404).json({ error: 'Инвойс не найден' });
+        }
+
+        // Проверяем статус через API
+        const data = await httpsRequest(`${CRYPTOBOT_API}/getInvoices?invoice_ids=${invoiceId}`, {
+            method: 'GET',
+            headers: {
+                'Crypto-Pay-API-Token': CRYPTOBOT_TOKEN
+            }
+        });
+
+        // console.log('Check invoice response:', data);
+        
+        if (data.ok && data.result.items.length > 0) {
+            const apiInvoice = data.result.items[0];
+            
+            // Если оплачен, обновляем пользователя
+            if (apiInvoice.status === 'paid' && invoice.status !== 'paid') {
+                // console.log('Invoice is paid, updating user...');
+                
+                // Обновляем статус инвойса
+                await dbRun(
+                    `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
+                    [invoiceId]
+                );
+
+                // Выдаем роль beta и подписку
+                const subDuration = getPlanDuration(invoice.plan_type);
+                const subUntil = new Date();
+                subUntil.setDate(subUntil.getDate() + subDuration);
+                const subUntilStr = subUntil.toISOString().split('T')[0];
+
+                await dbRun(
+                    `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
+                    [subUntilStr, userId]
+                );
+            }
+            
+            res.json({
+                status: apiInvoice.status,
+                paid: apiInvoice.status === 'paid'
+            });
+        } else {
+            res.json({
+                status: invoice.status,
+                paid: invoice.status === 'paid'
+            });
+        }
 
     } catch (error) {
         console.error('Check payment error:', error);

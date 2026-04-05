@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getDatabase } = require('../database/db');
+const { dbGet, dbRun, dbAll } = require('../database/db-helper');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
@@ -26,11 +26,11 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-const hasSubscription = (req, res, next) => {
-  const db = getDatabase();
-  
-  db.get('SELECT role FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (err || !user) {
+const hasSubscription = async (req, res, next) => {
+  try {
+    const user = await dbGet('SELECT role FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
     
@@ -40,7 +40,9 @@ const hasSubscription = (req, res, next) => {
     }
     
     next();
-  });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 };
 
 const uploadsDir = path.join(__dirname, '../../uploads/configs');
@@ -76,129 +78,119 @@ const upload = multer({
   }
 });
 
-router.get('/configs', authMiddleware, hasSubscription, (req, res) => {
-  const db = getDatabase();
-  
-  db.all(
-    'SELECT id, name, file_size, created_at, updated_at FROM configs WHERE user_id = ? ORDER BY updated_at DESC',
-    [req.userId],
-    (err, configs) => {
-      if (err) {
-        return res.status(500).json({ error: 'Ошибка загрузки конфигов' });
-      }
-      
-      const formattedConfigs = configs.map(config => ({
-        id: config.id,
-        name: config.name,
-        fileSize: config.file_size,
-        createdAt: new Date(config.created_at).toLocaleDateString('ru-RU'),
-        updatedAt: new Date(config.updated_at).toLocaleDateString('ru-RU')
-      }));
-      
-      res.json({ configs: formattedConfigs });
-    }
-  );
+router.get('/configs', authMiddleware, hasSubscription, async (req, res) => {
+  try {
+    const configs = await dbAll(
+      'SELECT id, name, file_size, created_at, updated_at FROM configs WHERE user_id = ? ORDER BY updated_at DESC',
+      [req.userId]
+    );
+    
+    const formattedConfigs = configs.map(config => ({
+      id: config.id,
+      name: config.name,
+      fileSize: config.file_size,
+      createdAt: new Date(config.created_at).toLocaleDateString('ru-RU'),
+      updatedAt: new Date(config.updated_at).toLocaleDateString('ru-RU')
+    }));
+    
+    res.json({ configs: formattedConfigs });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки конфигов' });
+  }
 });
 
-router.post('/configs/upload', authMiddleware, hasSubscription, upload.single('config'), (req, res) => {
+router.post('/configs/upload', authMiddleware, hasSubscription, upload.single('config'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Файл не загружен' });
   }
   
-  const db = getDatabase();
   const configName = req.body.name || req.file.originalname;
   
-  db.run(
-    'INSERT INTO configs (user_id, name, file_path, file_size) VALUES (?, ?, ?, ?)',
-    [req.userId, configName, req.file.path, req.file.size],
-    function(err) {
-      if (err) {
-        fs.unlinkSync(req.file.path);
-        return res.status(500).json({ error: 'Ошибка сохранения конфига' });
+  try {
+    const result = await dbRun(
+      'INSERT INTO configs (user_id, name, file_path, file_size) VALUES (?, ?, ?, ?)',
+      [req.userId, configName, req.file.path, req.file.size]
+    );
+    
+    res.json({
+      success: true,
+      config: {
+        id: result.lastID,
+        name: configName,
+        fileSize: req.file.size,
+        createdAt: new Date().toLocaleDateString('ru-RU')
       }
-      
-      res.json({
-        success: true,
-        config: {
-          id: this.lastID,
-          name: configName,
-          fileSize: req.file.size,
-          createdAt: new Date().toLocaleDateString('ru-RU')
-        }
-      });
-    }
-  );
+    });
+  } catch (err) {
+    fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'Ошибка сохранения конфига' });
+  }
 });
 
-router.get('/configs/:id/download', authMiddleware, hasSubscription, (req, res) => {
-  const db = getDatabase();
-  
-  db.get(
-    'SELECT * FROM configs WHERE id = ? AND user_id = ?',
-    [req.params.id, req.userId],
-    (err, config) => {
-      if (err || !config) {
-        return res.status(404).json({ error: 'Конфиг не найден' });
-      }
-      
-      if (!fs.existsSync(config.file_path)) {
-        return res.status(404).json({ error: 'Файл не найден' });
-      }
-      
-      res.download(config.file_path, config.name);
+router.get('/configs/:id/download', authMiddleware, hasSubscription, async (req, res) => {
+  try {
+    const config = await dbGet(
+      'SELECT * FROM configs WHERE id = ? AND user_id = ?',
+      [req.params.id, req.userId]
+    );
+    
+    if (!config) {
+      return res.status(404).json({ error: 'Конфиг не найден' });
     }
-  );
+    
+    if (!fs.existsSync(config.file_path)) {
+      return res.status(404).json({ error: 'Файл не найден' });
+    }
+    
+    res.download(config.file_path, config.name);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
-router.delete('/configs/:id', authMiddleware, hasSubscription, (req, res) => {
-  const db = getDatabase();
-  
-  db.get(
-    'SELECT * FROM configs WHERE id = ? AND user_id = ?',
-    [req.params.id, req.userId],
-    (err, config) => {
-      if (err || !config) {
-        return res.status(404).json({ error: 'Конфиг не найден' });
-      }
-      
-      if (fs.existsSync(config.file_path)) {
-        fs.unlinkSync(config.file_path);
-      }
-      
-      db.run('DELETE FROM configs WHERE id = ?', [req.params.id], (err) => {
-        if (err) {
-          return res.status(500).json({ error: 'Ошибка удаления' });
-        }
-        res.json({ success: true });
-      });
+router.delete('/configs/:id', authMiddleware, hasSubscription, async (req, res) => {
+  try {
+    const config = await dbGet(
+      'SELECT * FROM configs WHERE id = ? AND user_id = ?',
+      [req.params.id, req.userId]
+    );
+    
+    if (!config) {
+      return res.status(404).json({ error: 'Конфиг не найден' });
     }
-  );
+    
+    if (fs.existsSync(config.file_path)) {
+      fs.unlinkSync(config.file_path);
+    }
+    
+    await dbRun('DELETE FROM configs WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
 });
 
-router.put('/configs/:id/rename', authMiddleware, hasSubscription, (req, res) => {
+router.put('/configs/:id/rename', authMiddleware, hasSubscription, async (req, res) => {
   const { name } = req.body;
   
   if (!name || name.trim().length === 0) {
     return res.status(400).json({ error: 'Введите название' });
   }
   
-  const db = getDatabase();
-  
-  db.run(
-    'UPDATE configs SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
-    [name.trim(), req.params.id, req.userId],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Ошибка переименования' });
-      }
-      
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'Конфиг не найден' });
-      }
-      
-      res.json({ success: true, name: name.trim() });
+  try {
+    const result = await dbRun(
+      'UPDATE configs SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [name.trim(), req.params.id, req.userId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Конфиг не найден' });
     }
-  );
+    
+    res.json({ success: true, name: name.trim() });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка переименования' });
+  }
 });
 
 module.exports = router;

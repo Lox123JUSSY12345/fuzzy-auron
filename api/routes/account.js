@@ -5,7 +5,7 @@ const QRCode = require('qrcode');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getDatabase } = require('../database/db');
+const { dbGet, dbRun, dbAll } = require('../database/db-helper');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
@@ -59,11 +59,11 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-router.get('/account/details', authMiddleware, (req, res) => {
-  const db = getDatabase();
-  
-  db.get('SELECT * FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (err || !user) {
+router.get('/account/details', authMiddleware, async (req, res) => {
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
@@ -83,30 +83,31 @@ router.get('/account/details', authMiddleware, (req, res) => {
       subuntill: user.sub_until,
       version: user.version
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
-router.post('/account/update-ram', authMiddleware, (req, res) => {
+router.post('/account/update-ram', authMiddleware, async (req, res) => {
   const { ram } = req.body;
-  const db = getDatabase();
 
   if (!ram || ram < 512 || ram > 16384) {
     return res.status(400).json({ error: 'Некорректное значение RAM' });
   }
 
-  db.run('UPDATE users SET ram = ? WHERE id = ?', [ram, req.userId], function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Ошибка при обновлении' });
-    }
+  try {
+    await dbRun('UPDATE users SET ram = ? WHERE id = ?', [ram, req.userId]);
     res.json({ success: true, ram });
-  });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка при обновлении' });
+  }
 });
 
-router.post('/account/setup-2fa', authMiddleware, (req, res) => {
-  const db = getDatabase();
-
-  db.get('SELECT * FROM users WHERE id = ?', [req.userId], async (err, user) => {
-    if (err || !user) {
+router.post('/account/setup-2fa', authMiddleware, async (req, res) => {
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
@@ -115,35 +116,29 @@ router.post('/account/setup-2fa', authMiddleware, (req, res) => {
     }
 
     const secret = speakeasy.generateSecret({
-      name: `Rockstar (${user.login})`
+      name: `Auron Client (${user.login})`
     });
 
-    try {
-      const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
-      
-      db.run('UPDATE users SET gauth_secret = ? WHERE id = ?', [secret.base32, req.userId], (err) => {
-        if (err) {
-          return res.status(500).json({ error: 'Ошибка при сохранении' });
-        }
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+    await dbRun('UPDATE users SET gauth_secret = ? WHERE id = ?', [secret.base32, req.userId]);
 
-        res.json({
-          success: true,
-          secret: secret.base32,
-          qrCode: qrCodeUrl
-        });
-      });
-    } catch (err) {
-      res.status(500).json({ error: 'Ошибка генерации QR кода' });
-    }
-  });
+    res.json({
+      success: true,
+      secret: secret.base32,
+      qrCode: qrCodeUrl
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка генерации QR кода' });
+  }
 });
 
-router.post('/account/verify-2fa', authMiddleware, (req, res) => {
+router.post('/account/verify-2fa', authMiddleware, async (req, res) => {
   const { code } = req.body;
-  const db = getDatabase();
 
-  db.get('SELECT * FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (err || !user) {
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
@@ -162,21 +157,20 @@ router.post('/account/verify-2fa', authMiddleware, (req, res) => {
       return res.status(401).json({ error: 'Неверный код' });
     }
 
-    db.run('UPDATE users SET gauth_enabled = 1 WHERE id = ?', [req.userId], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Ошибка при активации' });
-      }
-      res.json({ success: true });
-    });
-  });
+    await dbRun('UPDATE users SET gauth_enabled = 1 WHERE id = ?', [req.userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка при активации' });
+  }
 });
 
-router.post('/account/disable-2fa', authMiddleware, (req, res) => {
+router.post('/account/disable-2fa', authMiddleware, async (req, res) => {
   const { code } = req.body;
-  const db = getDatabase();
 
-  db.get('SELECT * FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (err || !user) {
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
@@ -195,27 +189,22 @@ router.post('/account/disable-2fa', authMiddleware, (req, res) => {
       return res.status(401).json({ error: 'Неверный код' });
     }
 
-    db.run('UPDATE users SET gauth_enabled = 0, gauth_secret = NULL WHERE id = ?', [req.userId], (err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Ошибка при отключении' });
-      }
-      res.json({ success: true });
-    });
-  });
+    await dbRun('UPDATE users SET gauth_enabled = 0, gauth_secret = NULL WHERE id = ?', [req.userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка при отключении' });
+  }
 });
 
-router.post('/account/activate-key', authMiddleware, (req, res) => {
+router.post('/account/activate-key', authMiddleware, async (req, res) => {
   const { key } = req.body;
-  const db = getDatabase();
 
   if (!key || key.trim().length === 0) {
     return res.status(400).json({ error: 'Введите ключ' });
   }
 
-  db.get('SELECT * FROM activation_keys WHERE key_code = ?', [key.trim()], (err, keyData) => {
-    if (err) {
-      return res.status(500).json({ error: 'Ошибка сервера' });
-    }
+  try {
+    const keyData = await dbGet('SELECT * FROM activation_keys WHERE key_code = ?', [key.trim()]);
 
     if (!keyData) {
       return res.status(404).json({ error: 'Ключ не найден' });
@@ -229,33 +218,18 @@ router.post('/account/activate-key', authMiddleware, (req, res) => {
     newSubDate.setDate(newSubDate.getDate() + keyData.duration_days);
     const subUntil = newSubDate.toLocaleDateString('ru-RU');
 
-    db.run(
-      'UPDATE users SET role = ?, sub_until = ? WHERE id = ?',
-      [keyData.role, subUntil, req.userId],
-      function(err) {
-        if (err) {
-          return res.status(500).json({ error: 'Ошибка при активации' });
-        }
+    await dbRun('UPDATE users SET role = ?, sub_until = ? WHERE id = ?', [keyData.role, subUntil, req.userId]);
+    await dbRun('UPDATE activation_keys SET used = 1, used_by = ?, used_at = CURRENT_TIMESTAMP WHERE key_code = ?', [req.userId, key.trim()]);
 
-        db.run(
-          'UPDATE activation_keys SET used = 1, used_by = ?, used_at = CURRENT_TIMESTAMP WHERE key_code = ?',
-          [req.userId, key.trim()],
-          (err) => {
-            if (err) {
-              console.error('Error marking key as used:', err);
-            }
-
-            res.json({
-              success: true,
-              role: keyData.role,
-              subUntil: subUntil,
-              message: `Ключ активирован! Роль: ${keyData.role}, подписка до: ${subUntil}`
-            });
-          }
-        );
-      }
-    );
-  });
+    res.json({
+      success: true,
+      role: keyData.role,
+      subUntil: subUntil,
+      message: `Ключ активирован! Роль: ${keyData.role}, подписка до: ${subUntil}`
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 router.get('/avatar/:id', (req, res) => {
@@ -267,11 +241,11 @@ router.get('/avatar/:id', (req, res) => {
   });
 });
 
-router.get('/download/loader', authMiddleware, (req, res) => {
-  const db = getDatabase();
-  
-  db.get('SELECT role FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (err || !user) {
+router.get('/download/loader', authMiddleware, async (req, res) => {
+  try {
+    const user = await dbGet('SELECT role FROM users WHERE id = ?', [req.userId]);
+    
+    if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
     
@@ -281,26 +255,28 @@ router.get('/download/loader', authMiddleware, (req, res) => {
     }
     
     const loaderPath = require('path').join(__dirname, '../../rockstar-1.0.0.jar');
-    const fs = require('fs');
     
     if (!fs.existsSync(loaderPath)) {
       return res.status(404).json({ error: 'Файл не найден' });
     }
     
-    res.download(loaderPath, 'rockstar-1.0.0.jar');
-  });
+    res.download(loaderPath, 'auron-client-1.0.0.jar');
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
-router.post('/account/upload-avatar', authMiddleware, upload.single('avatar'), (req, res) => {
+router.post('/account/upload-avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Файл не загружен' });
   }
 
-  const db = getDatabase();
   const avatarUrl = `/uploads/avatars/${req.file.filename}`;
 
-  // Удаляем старую аватарку если она есть
-  db.get('SELECT avatar_url FROM users WHERE id = ?', [req.userId], (err, user) => {
+  try {
+    // Удаляем старую аватарку если она есть
+    const user = await dbGet('SELECT avatar_url FROM users WHERE id = ?', [req.userId]);
+    
     if (user && user.avatar_url && user.avatar_url !== '/img/default-avatar.svg') {
       const oldAvatarPath = path.join(__dirname, '../..', user.avatar_url);
       if (fs.existsSync(oldAvatarPath)) {
@@ -309,13 +285,11 @@ router.post('/account/upload-avatar', authMiddleware, upload.single('avatar'), (
     }
 
     // Обновляем URL аватарки в базе
-    db.run('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.userId], function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Ошибка при сохранении' });
-      }
-      res.json({ success: true, avatarUrl });
-    });
-  });
+    await dbRun('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, req.userId]);
+    res.json({ success: true, avatarUrl });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка при сохранении' });
+  }
 });
 
 module.exports = router;
