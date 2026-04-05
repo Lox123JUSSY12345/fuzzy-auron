@@ -69,26 +69,11 @@ main {
 .form-container {
     align-items: center;
     position: relative;
-    padding: 35px;
-    border-radius: 35px;
-    background: transparent;
-    border: none;
-    backdrop-filter: blur(37.5px);
-    overflow: hidden;
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
-}
-
-.form-container::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 35px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -30%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+    padding: 40px;
+    border-radius: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .text {
@@ -137,27 +122,16 @@ main {
     width: 400px;
     align-items: center;
     position: relative;
-    border-radius: 30px;
+    border-radius: 12px;
     margin-top: 10px;
-    background: rgb(20, 20, 20, 0.25);
-    border: none;
-    overflow: hidden;
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
-    transition: all 0.3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
 }
 
-.input-wrapper::before, .submit-btn::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 30px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -10%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
+.input-wrapper:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .submit-btn {
@@ -167,14 +141,17 @@ main {
     align-items: center;
     text-align: center;
     font-size: 18px;
-    background: rgb(20, 20, 20, 0.50);
-    color: var(--text-color);
+    background: var(--accent-color);
+    color: #ffffff;
     cursor: pointer;
-    font-weight: 400;
+    font-weight: 600;
+    border: none;
 }
 
-.submit-btn:hover, .input-wrapper:hover {
-    transform: scale(1.02);
+.submit-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
 }
 
 .checkbox-group {
