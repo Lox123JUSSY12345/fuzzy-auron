@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
-const QRCode = require('qrcode');
 const { body, validationResult } = require('express-validator');
 const { getDatabase } = require('../database/db');
 
@@ -22,56 +21,61 @@ router.post('/signup', [
   const { login, email, password } = req.body;
   const db = getDatabase();
 
-  db.get('SELECT * FROM users WHERE login = ? OR email = ?', [login, email], async (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Ошибка сервера' });
-    }
+  try {
+    // Проверяем существование пользователя
+    const existingUser = await db.query(
+      'SELECT * FROM users WHERE login = $1 OR email = $2',
+      [login, email]
+    );
     
-    if (user) {
+    if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatarUrl = `/api/v1/avatar/${Date.now()}`;
 
-    db.run(
-      'INSERT INTO users (login, email, password, avatar_url) VALUES (?, ?, ?, ?)',
-      [login, email, hashedPassword, avatarUrl],
-      function(err) {
-        if (err) {
-          return res.status(500).json({ error: 'Ошибка при создании пользователя' });
-        }
-
-        const token = jwt.sign({ id: this.lastID, login }, JWT_SECRET, { expiresIn: '7d' });
-        
-        res.status(201).json({
-          success: true,
-          token,
-          user: {
-            id: this.lastID,
-            login,
-            email
-          }
-        });
-      }
+    // Создаем пользователя
+    const result = await db.query(
+      'INSERT INTO users (login, email, password, avatar_url) VALUES ($1, $2, $3, $4) RETURNING id',
+      [login, email, hashedPassword, avatarUrl]
     );
-  });
+
+    const userId = result.rows[0].id;
+    const token = jwt.sign({ id: userId, login }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: userId,
+        login,
+        email
+      }
+    });
+  } catch (err) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 router.post('/signin', async (req, res) => {
   const { statement, password } = req.body;
   const db = getDatabase();
 
-  db.get('SELECT * FROM users WHERE login = ? OR email = ?', [statement, statement], async (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Ошибка сервера' });
-    }
+  try {
+    const result = await db.query(
+      'SELECT * FROM users WHERE login = $1 OR email = $1',
+      [statement]
+    );
 
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ reason: 'Неверный логин или пароль' });
     }
 
+    const user = result.rows[0];
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
     if (!isPasswordValid) {
       return res.status(401).json({ reason: 'Неверный логин или пароль' });
     }
@@ -94,17 +98,27 @@ router.post('/signin', async (req, res) => {
         email: user.email
       }
     });
-  });
+  } catch (err) {
+    console.error('Signin error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 router.post('/verify-2fa', async (req, res) => {
   const { statement, code } = req.body;
   const db = getDatabase();
 
-  db.get('SELECT * FROM users WHERE login = ? OR email = ?', [statement, statement], (err, user) => {
-    if (err || !user) {
+  try {
+    const result = await db.query(
+      'SELECT * FROM users WHERE login = $1 OR email = $1',
+      [statement]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Пользователь не найден' });
     }
+
+    const user = result.rows[0];
 
     if (!user.gauth_enabled || !user.gauth_secret) {
       return res.status(400).json({ error: '2FA не настроен' });
@@ -132,7 +146,10 @@ router.post('/verify-2fa', async (req, res) => {
         email: user.email
       }
     });
-  });
+  } catch (err) {
+    console.error('2FA verification error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 module.exports = router;
