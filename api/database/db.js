@@ -1,7 +1,17 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../database.sqlite');
+// Используем /data для постоянного хранения на Railway
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
+const DB_PATH = process.env.DB_PATH || path.join(DATA_DIR, 'database.sqlite');
+
+// Создаем директорию если её нет
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log('✅ Created data directory:', DATA_DIR);
+}
+
 let db;
 
 function getDatabase() {

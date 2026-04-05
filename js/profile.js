@@ -18,8 +18,8 @@
             
             const avatarUrl = accountData.avatarUrl || '/img/default-avatar.svg';
             
-            const headerAvatar = document.querySelector('.header-actions .avatar');
-            const headerName = document.querySelector('.header-actions .header-name');
+            const headerAvatar = document.querySelector('.header-actions .profile-avatar');
+            const headerName = document.querySelector('.header-actions .profile-name');
             if (headerAvatar) headerAvatar.src = avatarUrl;
             if (headerName) headerName.textContent = accountData.login || '';
 
