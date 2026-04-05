@@ -76,7 +76,7 @@ router.get('/account/details', authMiddleware, (req, res) => {
       createdAt: new Date(user.created_at).toLocaleDateString('ru-RU'),
       banned: user.banned === 1,
       status: user.status === 1,
-      avatarUrl: user.avatar_url || '/img/ava.jpg',
+      avatarUrl: user.avatar_url || '/img/default-avatar.svg',
       gauthStatus: user.gauth_enabled === 1 ? 'true' : 'false',
       hwid: user.hwid,
       ram: user.ram.toString(),
@@ -301,7 +301,7 @@ router.post('/account/upload-avatar', authMiddleware, upload.single('avatar'), (
 
   // Удаляем старую аватарку если она есть
   db.get('SELECT avatar_url FROM users WHERE id = ?', [req.userId], (err, user) => {
-    if (user && user.avatar_url && user.avatar_url !== '/img/ava.jpg') {
+    if (user && user.avatar_url && user.avatar_url !== '/img/default-avatar.svg') {
       const oldAvatarPath = path.join(__dirname, '../..', user.avatar_url);
       if (fs.existsSync(oldAvatarPath)) {
         fs.unlinkSync(oldAvatarPath);

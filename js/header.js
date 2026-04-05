@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const profileBtn = document.createElement('div');
                 profileBtn.className = 'profile-button';
                 profileBtn.innerHTML = `
-                    <img src="${accountData.avatarUrl || '/img/ava.jpg'}" alt="Avatar" class="profile-avatar">
+                    <img src="${accountData.avatarUrl || '/img/default-avatar.svg'}" alt="Avatar" class="profile-avatar">
                     <span class="profile-name">${accountData.login || 'User'}</span>
                 `;
                 profileBtn.onclick = () => location.href = '/profile';

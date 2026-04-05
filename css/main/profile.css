@@ -33,15 +33,20 @@
 }
 
 :root {
-    --text-color: rgba(255, 255, 255, 0.9);
-    --text-other-color: rgba(255, 255, 255, 0.7);
-    --text-desc: rgb(114, 114, 114);
-    --text-desc-on: rgb(185, 185, 185, 0.9);
-    --border: rgb(255, 255, 255, 0.06);
+    --text-color: rgba(255, 255, 255, 0.95);
+    --text-other-color: rgba(255, 255, 255, 0.8);
+    --text-desc: rgb(140, 140, 140);
+    --text-desc-on: rgb(200, 200, 200);
+    --border: rgba(255, 255, 255, 0.1);
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #13131a;
+    --bg-tertiary: #1a1a24;
+    --accent-color: #6366f1;
+    --accent-hover: #4f46e5;
 }
 
 body {
-    background: #000;
+    background: var(--bg-primary);
     position: relative;
     overflow-x: hidden;
 }
@@ -53,9 +58,9 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: linear-gradient(135deg, #000428 0%, #004e92 50%, #000428 100%);
+    background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
     background-size: 400% 400%;
-    animation: gradientShift 15s ease infinite;
+    animation: gradientShift 20s ease infinite;
 }
 
 @keyframes gradientShift {
@@ -68,17 +73,6 @@ body {
     100% {
         background-position: 0% 50%;
     }
-}
-
-.animated-background::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    pointer-events: none;
 }
 
 main {
@@ -108,34 +102,25 @@ main {
 }
 
 .box {
-    padding: 10px;
+    padding: 24px;
     position: relative;
-    border-radius: 40px;
-    border: none;
-    backdrop-filter: blur(37.5px);
-    overflow: hidden;
-    background: rgb(20, 20, 20, 0.20);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
     font-size: 22px;
     font-weight: 400;
     vertical-align: middle;
     align-items: center;
     color: var(--text-color);
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
-    margin-bottom: 10px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    margin-bottom: 16px;
     overflow: visible;
+    transition: all 0.3s ease;
 }
 
-.box::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 40px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -10%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+.box:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .box.down {
@@ -150,9 +135,12 @@ main {
 }
 
 .upper-info img {
-    width: 70px;
-    border-radius: 60px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
     flex-shrink: 0;
+    object-fit: cover;
+    border: 3px solid var(--accent-color);
 }
 
 .text {
@@ -264,55 +252,38 @@ main {
 .highlight {
     display: inline-flex;
     position: relative;
-    padding: 7px 22px;
-    padding-left: 7px;
-    border-radius: 40px;
-    background: rgb(20, 20, 20, 0.50);
-    border: none;
-    backdrop-filter: blur(37.5px);
-    overflow: hidden;
+    padding: 12px 24px;
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     font-size: 18px;
-    font-weight: 400;
+    font-weight: 500;
     vertical-align: middle;
     align-items: center;
     color: var(--text-color);
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
-    transition: .3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
+    transition: all 0.3s ease;
     cursor: pointer;
 }
 
-.highlight::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 40px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -10%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+.highlight:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
 }
 
 .highlight .icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 8px;
-    padding: 8px;
-    background-color: rgba(255, 255, 255, 0.02);
-    border-radius: 50px;
-    font-size: 18px;
+    margin-right: 10px;
+    font-size: 20px;
     flex-shrink: 0;
     flex-grow: 0;
 }
 
 .highlight .icon i {
     line-height: 1;
-}
-
-.highlight:hover {
-    transform: scale(1.03);
 }
 
 #key-input-form {
@@ -338,43 +309,32 @@ main {
     width: 100%;
     align-items: center;
     position: relative;
-    border-radius: 30px;
+    border-radius: 12px;
     margin-top: 10px;
-    background: rgb(20, 20, 20, 0.25);
-    border: none;
-    overflow: hidden;
-    background: rgb(20, 20, 20, 0.50);
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
-    transition: all 0.3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
 }
 
-.input-wrapper::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 30px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -10%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.45, 1.45, 0.49, 1.15);
+.input-wrapper:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .input-wrapper input {
-    padding: 16px 22px;
+    padding: 14px 18px;
     width: 100%;
     background: transparent;
-    border: none; outline: none;
+    border: none;
+    outline: none;
     font-size: 16px;
-    font-weight: 500;
+    font-weight: 400;
     color: var(--text-color);
 }
 
 .input-wrapper input::placeholder {
     color: var(--text-desc);
-    font-weight: 500;
+    font-weight: 400;
 }
 
 #key-input-form label {
@@ -730,13 +690,13 @@ table, .pagination {
 .popup-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 10, 20, 0.55);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
     z-index: 1000;
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: overlay-fade-in 0.3s cubic-bezier(.4,0,.2,1);
+    animation: overlay-fade-in 0.2s ease;
 }
 
 .key-popup {
@@ -747,24 +707,12 @@ table, .pagination {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    border-radius: 32px;
-    padding: 28px;
-    backdrop-filter: blur(25px);
-    background: rgb(20, 20, 20, 0.20);
-    animation: popup-fade-in 0.38s cubic-bezier(0.45, 1.45, 0.49, 1.15);
-}
-
-.key-popup::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 32px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -30%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+    border-radius: 16px;
+    padding: 32px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: popup-fade-in 0.3s ease;
 }
 
 .other {
@@ -839,59 +787,37 @@ table, .pagination {
 
 .wrapper {
     position: relative;
-    border-radius: 30px;
-    background: rgb(20, 20, 20, 0.50);
-    box-shadow: 4px 7px 13.5px rgb(0, 0, 0, 0.15);
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     margin-bottom: 20px;
-    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.wrapper::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 30px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -10%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+.wrapper:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .popup-buy {
     align-items: center;
     position: relative;
-    padding: 20px;
-    border-radius: 35px;
-    background: transparent;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--accent-color);
     border: none;
-    overflow: hidden;
     width: 100%;
-    color: var(--text-color);
-    font-size: 18px;
-    background-color: rgb(20, 20, 20, 0.35);
+    color: #ffffff;
+    font-size: 16px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-weight: 500;
-}
-
-.popup-buy::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 35px;
-    padding: 1px;
-    background: linear-gradient(149deg, #fff -30%, #fff -60%, rgba(255, 255, 255, 0.06) 20%, rgba(255, 255, 255, 0.06) 80%, #fff 130%, #fff 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+    transition: all 0.3s ease;
+    font-weight: 600;
 }
 
 .popup-buy:hover {
-    transform: scale(1.03);
-    background-color: rgb(20, 20, 20, 0.45);
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
 }
 
 @keyframes popup-fade-in {

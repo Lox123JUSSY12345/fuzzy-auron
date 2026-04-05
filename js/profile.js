@@ -16,7 +16,7 @@
         function updateProfileUI(accountData) {
             console.log('Updating UI with data:', accountData);
             
-            const avatarUrl = accountData.avatarUrl || '/img/ava.jpg';
+            const avatarUrl = accountData.avatarUrl || '/img/default-avatar.svg';
             
             const headerAvatar = document.querySelector('.header-actions .avatar');
             const headerName = document.querySelector('.header-actions .header-name');
