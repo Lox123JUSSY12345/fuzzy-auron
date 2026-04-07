@@ -294,3 +294,165 @@ function getPlanDuration(planType) {
 }
 
 module.exports = router;
+
+// ЮKassa конфигурация
+const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || ''; // Нужно получить в ЮKassa
+const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || ''; // Нужно получить в ЮKassa
+const YOOKASSA_API = 'https://api.yookassa.ru/v3';
+
+// Создание платежа через ЮKassa
+router.post('/payment/create-yookassa', authMiddleware, async (req, res) => {
+    try {
+        const { planType, amount, promocode, paymentMethod } = req.body;
+        const userId = req.user.id;
+
+        if (!planType || !amount) {
+            return res.status(400).json({ error: 'Не указан тариф или сумма' });
+        }
+
+        let finalAmount = amount;
+        let discountPercent = 0;
+
+        // Проверяем промокод если указан
+        if (promocode) {
+            const promoResult = await dbGet(
+                `SELECT * FROM promocodes WHERE code = ? AND active = 1 AND (expires_at IS NULL OR expires_at > datetime('now')) AND (max_uses = 0 OR used_count < max_uses)`,
+                [promocode.toUpperCase()]
+            );
+
+            if (promoResult) {
+                discountPercent = promoResult.discount_percent;
+                finalAmount = amount * (1 - discountPercent / 100);
+                
+                // Увеличиваем счетчик использований
+                await dbRun(
+                    `UPDATE promocodes SET used_count = used_count + 1 WHERE code = ?`,
+                    [promocode.toUpperCase()]
+                );
+            }
+        }
+
+        // Определяем метод оплаты для ЮKassa
+        let paymentMethodData = {};
+        if (paymentMethod === 'card') {
+            paymentMethodData = { type: 'bank_card' };
+        } else if (paymentMethod === 'qiwi') {
+            paymentMethodData = { type: 'qiwi' };
+        }
+
+        const description = discountPercent > 0 
+            ? `Подписка ${planType} (скидка ${discountPercent}%)`
+            : `Подписка ${planType}`;
+
+        // Генерируем уникальный ID платежа
+        const idempotenceKey = crypto.randomUUID();
+
+        // Создаем платеж через ЮKassa API
+        const paymentData = {
+            amount: {
+                value: finalAmount.toFixed(2),
+                currency: 'RUB'
+            },
+            confirmation: {
+                type: 'redirect',
+                return_url: `${req.protocol}://${req.get('host')}/payment-success.html`
+            },
+            capture: true,
+            description: description,
+            metadata: {
+                userId: userId,
+                planType: planType,
+                originalAmount: amount,
+                finalAmount: finalAmount,
+                discountPercent: discountPercent
+            }
+        };
+
+        // Если указан метод оплаты, добавляем его
+        if (Object.keys(paymentMethodData).length > 0) {
+            paymentData.payment_method_data = paymentMethodData;
+        }
+
+        const auth = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
+
+        const response = await fetch(`${YOOKASSA_API}/payments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${auth}`,
+                'Idempotence-Key': idempotenceKey
+            },
+            body: JSON.stringify(paymentData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('YooKassa error:', data);
+            return res.status(500).json({ 
+                error: 'Ошибка создания платежа',
+                details: data.description || data
+            });
+        }
+
+        // Сохраняем платеж в БД
+        await dbRun(
+            `INSERT INTO invoices (invoice_id, user_id, plan_type, amount, status, created_at) 
+             VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
+            [data.id, userId, planType, amount]
+        );
+
+        res.json({
+            success: true,
+            confirmationUrl: data.confirmation.confirmation_url,
+            paymentId: data.id
+        });
+
+    } catch (error) {
+        console.error('Create YooKassa payment error:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Webhook для ЮKassa
+router.post('/payment/yookassa-webhook', async (req, res) => {
+    try {
+        const notification = req.body;
+        
+        console.log('=== YOOKASSA WEBHOOK RECEIVED ===');
+        console.log('Body:', JSON.stringify(notification, null, 2));
+
+        if (notification.event === 'payment.succeeded') {
+            const payment = notification.object;
+            const paymentId = payment.id;
+            const metadata = payment.metadata;
+            
+            console.log('Payment succeeded:', paymentId);
+
+            // Обновляем статус платежа
+            await dbRun(
+                `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
+                [paymentId]
+            );
+
+            // Выдаем роль beta и подписку
+            const subDuration = getPlanDuration(metadata.planType);
+            const subUntil = new Date();
+            subUntil.setDate(subUntil.getDate() + subDuration);
+            const subUntilStr = subUntil.toISOString().split('T')[0];
+
+            console.log(`Updating user ${metadata.userId} to beta until ${subUntilStr}`);
+
+            await dbRun(
+                `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
+                [subUntilStr, metadata.userId]
+            );
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('YooKassa webhook error:', error);
+        res.status(500).json({ error: 'Webhook processing error' });
+    }
+});

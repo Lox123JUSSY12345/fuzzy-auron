@@ -90,11 +90,65 @@ function closeModal() {
 async function submitPurchase() {
     const selectedPayment = document.querySelector('input[name="payment"]:checked').value;
     
-    if (selectedPayment === 'card' || selectedPayment === 'qiwi') {
+    // Проверяем авторизацию
+    const token = localStorage.getItem('jwtToken');
+    if (!token) {
         if (window.__toast) {
-            window.__toast('Временно недоступно', 'error', 3000);
-        } else {
-            alert('Временно недоступно');
+            window.__toast('Необходимо авторизоваться', 'error', 3000);
+        }
+        setTimeout(() => {
+            window.location.href = '/signin.html';
+        }, 1000);
+        return;
+    }
+
+    if (selectedPayment === 'card' || selectedPayment === 'qiwi') {
+        // Оплата через ЮKassa (карты и QIWI)
+        try {
+            if (window.__toast) {
+                window.__toast('Создание платежа...', 'info', 2000);
+            }
+
+            const promocode = document.getElementById('promoInput').value.trim();
+
+            const response = await fetch(`${window.API_BASE_URL}/payment/create-yookassa`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    planType: currentPlanData.planType,
+                    amount: currentPlanData.amount,
+                    promocode: promocode || null,
+                    paymentMethod: selectedPayment
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                if (window.__toast) {
+                    window.__toast('Перенаправление на оплату...', 'success', 2000);
+                }
+                
+                closeModal();
+                
+                setTimeout(() => {
+                    window.location.href = data.confirmationUrl;
+                }, 500);
+            } else {
+                throw new Error(data.error || 'Ошибка создания платежа');
+            }
+
+        } catch (error) {
+            console.error('Payment error:', error);
+            if (window.__toast) {
+                window.__toast(error.message, 'error', 3000);
+            } else {
+                alert(error.message);
+            }
         }
     } else if (selectedPayment === 'crypto') {
         // Проверяем авторизацию
