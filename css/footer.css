@@ -1,21 +1,22 @@
 :root {
-    --text-color: rgba(255, 255, 255, 0.9);
-    --text-other-color: rgba(255, 255, 255, 0.7);
-    --text-desc: rgb(114, 114, 114);
-    --border: rgb(255, 255, 255, 0.06);
-    --text-desc-on: rgb(185, 185, 185, 0.9);
+    --text-color: rgba(255, 255, 255, 0.98);
+    --text-other-color: rgba(255, 255, 255, 0.85);
+    --text-desc: rgb(156, 163, 175);
+    --border: rgba(139, 92, 246, 0.15);
+    --text-desc-on: rgb(203, 213, 225);
 }
 
 .footer {
     padding: 40px 0 40px;
     margin-top: 100px;
     width: 100vw;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(139, 92, 246, 0.15);
     margin-left: calc(-50vw + 50%);
     position: relative;
     overflow: hidden;
-    background: rgb(20, 20, 20, 0.50);
-    backdrop-filter: blur(10px);
+    background: rgba(10, 14, 26, 0.8);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
 }
 
 .footer-content {
@@ -31,7 +32,8 @@
     color: var(--text-color);
     font-size: 18px;
     margin: 0 0 20px 0;
-    font-weight: 500;
+    font-weight: 700;
+    letter-spacing: -0.5px;
 }
 
 .footer-section p {
@@ -62,12 +64,28 @@
     color: var(--text-desc-on);
     font-size: 16px;
     text-decoration: none;
-    font-weight: 400;
-    transition: 0.15s ease-in-out;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.footer-section ul li a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg, #8b5cf6, #6366f1);
+    transition: width 0.3s ease;
 }
 
 .footer-section ul li a:hover {
-    color: var(--text-color);
+    color: #8b5cf6;
+}
+
+.footer-section ul li a:hover::after {
+    width: 100%;
 }
 
 @media (max-width: 1400px) {

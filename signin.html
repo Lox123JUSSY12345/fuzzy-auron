@@ -34,21 +34,28 @@
 
 <!-- Header -->
 <header>
-    <div class="logo">
-        <a href="/" class="logo-text">
-            <img src="/img/logo.png" alt="" data-lazy="false" fetchpriority="high">Auron Client
+    <div class="header-container">
+        <div class="logo-nav">Auron Client</div>
+        
+        <a href="/" class="nav-item">
+            <i class="ph ph-house nav-icon"></i>
+            <span class="nav-text">Главная</span>
         </a>
-    </div>
-
-    <ul>
-        <li><a href="/">Главная</a></li>
-        <li><a href="/purchase.html">Покупка</a></li>
-        <li><a href="/faq.html">FAQ</a></li>
-    </ul>
-
-    <div class="header-actions">
-        <button onclick="location.href='/signup.html'" class="button">Регистрация</button>
-        <button class="open-ul"><i class="ph-bold ph-list"></i></button>
+        
+        <a href="/purchase.html" class="nav-item">
+            <i class="ph ph-shopping-cart nav-icon"></i>
+            <span class="nav-text">Покупка</span>
+        </a>
+        
+        <a href="/faq.html" class="nav-item">
+            <i class="ph ph-question nav-icon"></i>
+            <span class="nav-text">FAQ</span>
+        </a>
+        
+        <a href="/signin.html" class="nav-item">
+            <i class="ph ph-sign-in nav-icon"></i>
+            <span class="nav-text">Вход</span>
+        </a>
     </div>
 </header>
 

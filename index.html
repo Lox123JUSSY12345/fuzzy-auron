@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/logo.png">
+
     <!-- Performance -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="dns-prefetch" href="https://unpkg.com">
@@ -28,25 +31,41 @@
 </head>
 <body>
 <!-- Animated Background -->
-<div class="animated-background"></div>
+<div class="animated-background">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+</div>
 
 <!-- Header -->
 <header>
-    <div class="logo">
-        <a href="/" class="logo-text">
-            <img src="/img/logo.png" alt="" data-lazy="false" fetchpriority="high">Auron Client
+    <div class="header-container">
+        <div class="logo-nav">
+            <img src="img/logo.png" alt="Auron Client" class="logo-icon">
+            Auron Client
+        </div>
+        
+        <a href="/" class="nav-item active">
+            <i class="ph ph-house nav-icon"></i>
+            <span class="nav-text">Главная</span>
         </a>
-    </div>
-
-    <ul>
-        <li><a href="/">Главная</a></li>
-        <li><a href="/purchase.html">Покупка</a></li>
-        <li><a href="/faq.html">FAQ</a></li>
-    </ul>
-
-    <div class="header-actions">
-        <button onclick="location.href='/signup.html'" class="button">Регистрация</button>
-        <button class="open-ul"><i class="ph-bold ph-list"></i></button>
+        
+        <a href="/purchase.html" class="nav-item">
+            <i class="ph ph-shopping-cart nav-icon"></i>
+            <span class="nav-text">Покупка</span>
+        </a>
+        
+        <a href="/faq.html" class="nav-item">
+            <i class="ph ph-question nav-icon"></i>
+            <span class="nav-text">FAQ</span>
+        </a>
+        
+        <a href="/profile.html" class="nav-item">
+            <i class="ph ph-user nav-icon"></i>
+            <span class="nav-text">Профиль</span>
+        </a>
     </div>
 </header>
 
@@ -66,6 +85,7 @@
                 </span><span class="h1-text">функциями</span>
         </h1>
     </section>
+    
     <!-- Плюсы чита -->
     <section class="pluses">
         <!-- Отдельная секция для острова -->
@@ -143,6 +163,7 @@
                 </div>
             </div>
         </section>
+        
         <!-- Моды -->
         <div class="music animate-on-scroll">
             <div class="music-text">
@@ -157,7 +178,7 @@
             <!-- Стаки модов -->
             <div class="mod-stack">
                 <!-- Мод Iris слева -->
-                <div class="highlight mod mod-bg l" style="transform: translate(-172px, 0px) scale(0.85);">
+                <div class="highlight mod mod-bg l">
                     <img src="/img/iris.webp" alt="">
                     <div class="text">
                         <div class="mod-name">Iris</div>
@@ -165,7 +186,7 @@
                     </div>
                 </div>
                 <!-- Мод Iris справа -->
-                <div class="highlight mod mod-bg r" style="transform: translate(172px, 0px) scale(0.85);">
+                <div class="highlight mod mod-bg r">
                     <img src="/img/iris.webp" alt="">
                     <div class="text">
                         <div class="mod-name">Iris</div>
@@ -173,7 +194,7 @@
                     </div>
                 </div>
                 <!-- Мод Lithium слева -->
-                <div class="highlight mod mod-bg hide l" style="transform: translate(-314px, 0px) scale(0.70); z-index: 0;">
+                <div class="highlight mod mod-bg hide l">
                     <img src="/img/lithium.png" alt="">
                     <div class="text">
                         <div class="mod-name">Lithium</div>
@@ -181,7 +202,7 @@
                     </div>
                 </div>
                 <!-- Мод Sodium Extra справа -->
-                <div class="highlight mod mod-bg hide r" style="transform: translate(314px, 0px) scale(0.70); z-index: 0;">
+                <div class="highlight mod mod-bg hide r">
                     <img src="/img/lithium.png" alt="">
                     <div class="text">
                         <div class="mod-name">Sodium Extra</div>
@@ -198,6 +219,8 @@
                 </div>
             </div>
         </div>
+
+        <!-- Серверы -->
         <div class="other-statuses animate-on-scroll">
             <div class="other-text">
                 <h1>Auron Client для Minecraft 1.21.4</h1>
@@ -214,6 +237,10 @@
                 </div>
             </div>
         </div>
+  
+    </section>
+        </section>
+    </section>
   
     <footer class="footer">
         <div class="footer-content">
@@ -284,8 +311,24 @@
         scrollElements.forEach((el) => {
             if (elementInView(el, 1.05)) {
                 displayScrollElement(el);
+                
+                // Add is-visible to mod-stack when its parent gets visible
+                if (el.classList.contains('music')) {
+                    const modStack = el.querySelector('.mod-stack');
+                    if (modStack) {
+                        modStack.classList.add('is-visible');
+                    }
+                }
             } else {
                 hideScrollElement(el);
+                
+                // Remove is-visible from mod-stack
+                if (el.classList.contains('music')) {
+                    const modStack = el.querySelector('.mod-stack');
+                    if (modStack) {
+                        modStack.classList.remove('is-visible');
+                    }
+                }
             }
         });
         if (mainSect) {

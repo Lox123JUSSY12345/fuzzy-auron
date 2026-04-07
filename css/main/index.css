@@ -11,15 +11,19 @@
 }
 
 :root {
-    --text-color: rgba(255, 255, 255, 0.95);
-    --text-other-color: rgba(255, 255, 255, 0.8);
-    --text-desc: rgb(140, 140, 140);
-    --bg-primary: #1a1d2e;
-    --bg-secondary: #22253a;
-    --bg-tertiary: #2a2d42;
-    --accent-color: #6366f1;
-    --accent-hover: #4f46e5;
-    --border: rgba(255, 255, 255, 0.1);
+    --text-color: rgba(255, 255, 255, 0.98);
+    --text-other-color: rgba(255, 255, 255, 0.85);
+    --text-desc: rgb(156, 163, 175);
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #151b2e;
+    --bg-tertiary: #1f2937;
+    --accent-color: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --accent-glow: rgba(139, 92, 246, 0.4);
+    --border: rgba(139, 92, 246, 0.15);
+    --card-bg: rgba(21, 27, 46, 0.6);
+    --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
 body {
@@ -35,20 +39,117 @@ body {
     width: 100%;
     height: 100%;
     z-index: -1;
-    background: linear-gradient(135deg, #1a1d2e 0%, #2a2d42 50%, #1a1d2e 100%);
-    background-size: 400% 400%;
-    animation: gradientShift 20s ease infinite;
+    background: radial-gradient(ellipse at top, #1e1b4b 0%, #0a0e1a 50%, #000000 100%);
+    overflow: hidden;
+}
+
+.animated-background::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+    animation: gradientShift 25s ease infinite;
+}
+
+.animated-background::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+    animation: float 20s ease-in-out infinite;
+}
+
+/* Floating particles */
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(139, 92, 246, 0.6);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.8);
+    animation: particleFloat 15s infinite ease-in-out;
+}
+
+.particle:nth-child(1) {
+    top: 20%;
+    left: 10%;
+    animation-delay: 0s;
+    animation-duration: 12s;
+}
+
+.particle:nth-child(2) {
+    top: 60%;
+    left: 80%;
+    animation-delay: 2s;
+    animation-duration: 18s;
+}
+
+.particle:nth-child(3) {
+    top: 40%;
+    left: 30%;
+    animation-delay: 4s;
+    animation-duration: 15s;
+}
+
+.particle:nth-child(4) {
+    top: 80%;
+    left: 60%;
+    animation-delay: 1s;
+    animation-duration: 20s;
+}
+
+.particle:nth-child(5) {
+    top: 15%;
+    left: 70%;
+    animation-delay: 3s;
+    animation-duration: 14s;
+}
+
+@keyframes particleFloat {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.3;
+    }
+    25% {
+        transform: translate(50px, -80px) scale(1.2);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate(-30px, -150px) scale(0.8);
+        opacity: 0.4;
+    }
+    75% {
+        transform: translate(80px, -100px) scale(1.1);
+        opacity: 0.7;
+    }
 }
 
 @keyframes gradientShift {
-    0% {
-        background-position: 0% 50%;
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30%, -30%) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20%, 20%) rotate(240deg);
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0) scale(1);
     }
     50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
+        transform: translateY(-20px) scale(1.05);
     }
 }
 
@@ -66,32 +167,36 @@ main {
 }
 
 .main-sect h1 {
-    letter-spacing: -1px;
-    font-weight: 500;
+    letter-spacing: -2px;
+    font-weight: 700;
+    text-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
+    font-size: 60px;
+    line-height: 150%;
 }
 
 .highlight {
     line-height: 0%;
     display: inline-flex;
     position: relative;
-    padding: 12px 24px;
-    border-radius: 12px;
-    background: var(--bg-secondary);
+    padding: 14px 28px;
+    border-radius: 16px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     font-size: 22px;
-    font-weight: 500;
+    font-weight: 600;
     vertical-align: middle;
     align-items: center;
     color: var(--text-color);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .highlight:hover {
-    background: var(--accent-color);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(124, 58, 237, 0.3) 100%);
     border-color: var(--accent-color);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 40px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .highlight .icon.event.altar {background-color: #722ABE;}
@@ -115,13 +220,14 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 8px;
-    padding: 8px;
-    background-color: rgba(255, 255, 255, 0.02);
-    border-radius: 50px;
+    margin-right: 10px;
+    padding: 10px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.3));
+    border-radius: 12px;
     font-size: 18px;
     flex-shrink: 0;
     flex-grow: 0;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
 }
 
 .highlight .icon i {
@@ -168,11 +274,13 @@ main {
 .island .upper h1 {
     font-size: 80px;
     line-height: 150%;
-    letter-spacing: -1px;
-    font-weight: 500;
-    background-image: linear-gradient(to bottom, #fff 50%, #979797);
+    letter-spacing: -2px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ffffff 0%, #8b5cf6 50%, #6366f1 100%);
     -webkit-background-clip: text;
-    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.3));
 } 
 
 .island .highlight .icon img {
@@ -217,12 +325,14 @@ main {
 
 .music h1 {
     font-size: 90px;
-    letter-spacing: -1px;
-    font-weight: 500;
+    letter-spacing: -2px;
+    font-weight: 700;
     margin-bottom: 16px;
-    background-image: linear-gradient(to bottom, #fff 50%, #979797);
+    background: linear-gradient(135deg, #ffffff 0%, #8b5cf6 50%, #6366f1 100%);
     -webkit-background-clip: text;
-    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.3));
 }
 
 .music p {
@@ -231,16 +341,17 @@ main {
 }
 
 .highlight.music {
-    padding: 32px;
+    padding: 36px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 20px;
     width: 500px;
     margin-top: 42px;
-    background: var(--bg-secondary);
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border-radius: 24px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .highlight.music .upper {
@@ -397,28 +508,18 @@ main {
     display: flex;
     padding: 90px 0 150px 0;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    flex-direction: row-reverse;
 }
 
-.other-statuses h1 {
-    font-size: 50px;
-    font-weight: 500;
-    margin-bottom: 10px;
-    letter-spacing: -1px;
-    background-image: linear-gradient(to bottom, #fff 50%, #979797);
-    -webkit-background-clip: text;
-    color: transparent;
-}
-
-.other-statuses p {
-    font-size: 18px;
-    color: var(--text-desc);
+.other-statuses .other-text {
+    text-align: right;
 }
 
 .other.statuses {
     display: flex;
     gap: 18px;
-    margin-left: auto;
+    margin-right: auto;
 }
 
 .left-st {
@@ -505,6 +606,9 @@ main {
     left: 0;
     top: 0;
     z-index: 1;
+    opacity: 0;
+    transform: translateY(30px) scale(0.8);
+    transition: all 0.8s cubic-bezier(0.45, 1.45, 0.49, 1.15);
 }
 
 .mod-bg {
@@ -512,119 +616,92 @@ main {
 }
 
 .mod-front {
-    transform: none;
-    opacity: 1;
-    filter: none;
     z-index: 2;
 }
 
+.mod-stack.is-visible .mod-front {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+}
+.mod-stack.is-visible .mod-bg.l {
+    opacity: 1;
+    transform: translateX(-180px) scale(0.88) rotate(-3deg);
+}
+.mod-stack.is-visible .mod-bg.r {
+    opacity: 1;
+    transform: translateX(180px) scale(0.88) rotate(3deg);
+}
+.mod-stack.is-visible .mod-bg.hide.l {
+    opacity: 0.7;
+    transform: translateX(-320px) scale(0.72) rotate(-5deg);
+}
+.mod-stack.is-visible .mod-bg.hide.r {
+    opacity: 0.7;
+    transform: translateX(320px) scale(0.72) rotate(5deg);
+}
+
 .other-statuses .images {
-  position: relative;
-  width: 320px;
-  height: 200px;
-  perspective: 1000px;
-  perspective-origin: center center;
+    position: relative;
+    width: 320px;
+    height: 200px;
 }
 
 .other-statuses .images img {
     width: 108px;
     border-radius: 12px;
-  position: absolute;
-  transform-style: preserve-3d;
-  transition: all 0.3s ease;
-  filter: drop-shadow(0 12px 25px rgba(0, 0, 0, 0.35));
-  backface-visibility: visible;
-  will-change: transform;
+    position: absolute;
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
 }
 
 .other-statuses .images img:hover {
-  transform: scale(1.1) rotateY(20deg) rotateX(10deg) translateZ(15px);
-  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+    transform: scale(1.05) translateY(-4px);
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
 }
 
 .other-statuses .images img:nth-child(1) {
-  top: 0px;
-  left: 15px;
-  animation: floatY1 4s ease-in-out infinite;
-  animation-delay: 0s;
-  z-index: 5;
+    top: 0px;
+    left: 15px;
+    transform: rotate(7deg);
+    animation: floatY 4s ease-in-out infinite;
+    animation-delay: 0s;
+    z-index: 5;
 }
 
 .other-statuses .images img:nth-child(2) {
-  top: 60px;
-  left: 120px;
-  animation: floatY2 4s ease-in-out infinite;
-  animation-delay: 0.3s;
-  z-index: 6;
+    top: 60px;
+    left: 120px;
+    transform: rotate(6deg);
+    animation: floatY 4s ease-in-out infinite;
+    animation-delay: 0.3s;
+    z-index: 6;
 }
 
 .other-statuses .images img:nth-child(3) {
-  top: 120px;
-  left: 30px;
-  animation: floatY3 4s ease-in-out infinite;
-  animation-delay: 0.6s;
-  z-index: 3;
+    top: 120px;
+    left: 30px;
+    transform: rotate(-12deg);
+    animation: floatY 4s ease-in-out infinite;
+    animation-delay: 0.6s;
+    z-index: 3;
 }
 
 .other-statuses .images img:nth-child(4) {
-  top: 10px;
-  left: 180px;
-  animation: floatY4 4s ease-in-out infinite;
-  animation-delay: 0.9s;
-  z-index: 2;
+    top: 10px;
+    left: 180px;
+    transform: rotate(8deg);
+    animation: floatY 4s ease-in-out infinite;
+    animation-delay: 0.9s;
+    z-index: 2;
 }
 
 .other-statuses .images img:nth-child(5) {
-  top: 135px;
-  left: 210px;
-  animation: floatY5 4s ease-in-out infinite;
-  animation-delay: 1.2s;
-  z-index: 1;
-}
-
-@keyframes floatY1 {
-    0%, 100% {
-        transform: rotate(7deg) translateY(0) rotateY(30deg) rotateX(8deg) translateZ(0);
-    }
-    50% {
-        transform: rotate(8deg) translateY(-6px) rotateY(30deg) rotateX(19deg) translateZ(20px);
-    }
-}
-
-@keyframes floatY2 {
-    0%, 100% {
-        transform: rotate(6deg) translateY(0) rotateY(0deg) rotateX(0deg) translateZ(0);
-    }
-    50% {
-        transform: rotate(6deg) translateY(-4px) rotateY(0deg) rotateX(0deg) translateZ(20px);
-    }
-}
-
-@keyframes floatY3 {
-    0%, 100% {
-        transform: rotate(-12deg) translateY(0) rotateY(30deg) rotateX(-9deg) translateZ(0);
-    }
-    50% {
-        transform: rotate(-12deg) translateY(-8px) rotateY(28deg) rotateX(-9deg) translateZ(22px);
-    }
-}
-
-@keyframes floatY4 {
-    0%, 100% {
-        transform: rotate(8deg) translateY(0) rotateY(-25deg) rotateX(8deg) translateZ(0);
-    }
-    50% {
-        transform: rotate(8deg) translateY(-6px) rotateY(-20deg) rotateX(5deg) translateZ(20px);
-    }
-}
-
-@keyframes floatY5 {
-    0%, 100% {
-        transform: rotate(-6deg) translateY(0) rotateY(-30deg) rotateX(-10deg) translateZ(0);
-    }
-    50% {
-        transform: rotate(-6deg) translateY(-4px) rotateY(-25deg) rotateX(-15deg) translateZ(18px);
-    }
+    top: 135px;
+    left: 210px;
+    transform: rotate(-6deg);
+    animation: floatY 4s ease-in-out infinite;
+    animation-delay: 1.2s;
+    z-index: 1;
 }
 
 
@@ -774,39 +851,11 @@ h1 .highlight .text-content {
 .is-visible .xray .finded:nth-of-type(3) { animation-delay: 1s; }
 .is-visible .xray .finded:nth-of-type(4) { animation-delay: 1.1s; }
 
-.highlight.mod {
-    position: absolute;
-    opacity: 0;
-    transform: translateY(30px) rotateY(-45deg) scale(0.8);
-    transition: all 0.8s cubic-bezier(0.45, 1.45, 0.49, 1.15);
-}
-
-.is-visible .mod-front {
-    opacity: 1;
-    transform: translateZ(20px) scale(1); 
-}
-.is-visible .mod-bg.l {
-    opacity: 1;
-    transform: translateX(-172px) scale(0.85);
-}
-.is-visible .mod-bg.r {
-    opacity: 1;
-    transform: translateX(172px) scale(0.85);
-}
-.is-visible .mod-bg.hide.l {
-    opacity: 0.7;
-    transform: translateX(-314px) scale(0.70);
-}
-.is-visible .mod-bg.hide.r {
-    opacity: 0.7;
-    transform: translateX(314px) scale(0.70);
-}
-
-.is-visible .mod-front        { transition-delay: 0.2s; }
-.is-visible .mod-bg.l         { transition-delay: 0.3s; }
-.is-visible .mod-bg.r         { transition-delay: 0.35s; }
-.is-visible .mod-bg.hide.l    { transition-delay: 0.4s; }
-.is-visible .mod-bg.hide.r    { transition-delay: 0.45s; }
+.mod-stack.is-visible .mod-front        { transition-delay: 0.2s; }
+.mod-stack.is-visible .mod-bg.l         { transition-delay: 0.35s; }
+.mod-stack.is-visible .mod-bg.r         { transition-delay: 0.3s; }
+.mod-stack.is-visible .mod-bg.hide.l    { transition-delay: 0.45s; }
+.mod-stack.is-visible .mod-bg.hide.r    { transition-delay: 0.4s; }
 
 .animate-on-scroll .music-text {
     opacity: 0;
@@ -864,3 +913,5 @@ h1 .highlight .text-content {
 .is-visible iframe {
     transition-delay: 0.2s;
 }
+
+
