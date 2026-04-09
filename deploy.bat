@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo   Auron Client - Git Deploy Helper
+echo   Auron Client - Railway Deploy
 echo ========================================
 echo.
 
@@ -14,7 +14,8 @@ git add .
 
 echo.
 echo ========================================
-set /p commit_message="Enter commit message: "
+set /p commit_message="Enter commit message (or press Enter for 'Update'): "
+if "%commit_message%"=="" set commit_message=Update
 git commit -m "%commit_message%"
 
 echo.
@@ -26,8 +27,7 @@ echo.
 echo ========================================
 echo Done! Your changes are now on GitHub
 echo.
-echo Next steps:
-echo 1. Go to render.com
-echo 2. Your site will auto-deploy in 2-3 minutes
+echo Railway will auto-deploy in 1-2 minutes!
+echo Check status: https://railway.app/dashboard
 echo.
 pause
