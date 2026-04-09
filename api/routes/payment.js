@@ -295,13 +295,13 @@ function getPlanDuration(planType) {
 
 module.exports = router;
 
-// ЮKassa конфигурация
-const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID || ''; // Нужно получить в ЮKassa
-const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY || ''; // Нужно получить в ЮKassa
-const YOOKASSA_API = 'https://api.yookassa.ru/v3';
+// Freekassa конфигурация (БЕЗ документов и активации!)
+const FREEKASSA_MERCHANT_ID = process.env.FREEKASSA_MERCHANT_ID || ''; // ID магазина
+const FREEKASSA_SECRET_WORD_1 = process.env.FREEKASSA_SECRET_WORD_1 || ''; // Секретное слово 1
+const FREEKASSA_SECRET_WORD_2 = process.env.FREEKASSA_SECRET_WORD_2 || ''; // Секретное слово 2
 
-// Создание платежа через ЮKassa
-router.post('/payment/create-yookassa', authMiddleware, async (req, res) => {
+// Создание платежа через Freekassa
+router.post('/payment/create-freekassa', authMiddleware, async (req, res) => {
     try {
         const { planType, amount, promocode, paymentMethod } = req.body;
         const userId = req.user.id;
@@ -324,7 +324,6 @@ router.post('/payment/create-yookassa', authMiddleware, async (req, res) => {
                 discountPercent = promoResult.discount_percent;
                 finalAmount = amount * (1 - discountPercent / 100);
                 
-                // Увеличиваем счетчик использований
                 await dbRun(
                     `UPDATE promocodes SET used_count = used_count + 1 WHERE code = ?`,
                     [promocode.toUpperCase()]
@@ -332,127 +331,107 @@ router.post('/payment/create-yookassa', authMiddleware, async (req, res) => {
             }
         }
 
-        // Определяем метод оплаты для ЮKassa
-        let paymentMethodData = {};
-        if (paymentMethod === 'card') {
-            paymentMethodData = { type: 'bank_card' };
-        } else if (paymentMethod === 'qiwi') {
-            paymentMethodData = { type: 'qiwi' };
-        }
-
         const description = discountPercent > 0 
             ? `Подписка ${planType} (скидка ${discountPercent}%)`
             : `Подписка ${planType}`;
 
-        // Генерируем уникальный ID платежа
-        const idempotenceKey = crypto.randomUUID();
-
-        // Создаем платеж через ЮKassa API
-        const paymentData = {
-            amount: {
-                value: finalAmount.toFixed(2),
-                currency: 'RUB'
-            },
-            confirmation: {
-                type: 'redirect',
-                return_url: `${req.protocol}://${req.get('host')}/payment-success.html`
-            },
-            capture: true,
-            description: description,
-            metadata: {
-                userId: userId,
-                planType: planType,
-                originalAmount: amount,
-                finalAmount: finalAmount,
-                discountPercent: discountPercent
-            }
-        };
-
-        // Если указан метод оплаты, добавляем его
-        if (Object.keys(paymentMethodData).length > 0) {
-            paymentData.payment_method_data = paymentMethodData;
-        }
-
-        const auth = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
-
-        const response = await fetch(`${YOOKASSA_API}/payments`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${auth}`,
-                'Idempotence-Key': idempotenceKey
-            },
-            body: JSON.stringify(paymentData)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('YooKassa error:', data);
-            return res.status(500).json({ 
-                error: 'Ошибка создания платежа',
-                details: data.description || data
-            });
-        }
+        // Генерируем уникальный order_id
+        const orderId = `${userId}_${Date.now()}`;
 
         // Сохраняем платеж в БД
         await dbRun(
             `INSERT INTO invoices (invoice_id, user_id, plan_type, amount, status, created_at) 
              VALUES (?, ?, ?, ?, 'pending', datetime('now'))`,
-            [data.id, userId, planType, amount]
+            [orderId, userId, planType, amount]
         );
+
+        // Формируем подпись для Freekassa
+        // Формат: m:amount:secret:order_id
+        const signString = `${FREEKASSA_MERCHANT_ID}:${finalAmount.toFixed(2)}:${FREEKASSA_SECRET_WORD_1}:${orderId}`;
+        const sign = crypto.createHash('md5').update(signString).digest('hex');
+
+        // Формируем параметры для URL
+        const params = {
+            m: FREEKASSA_MERCHANT_ID,
+            oa: finalAmount.toFixed(2),
+            o: orderId,
+            s: sign,
+            currency: 'RUB',
+            em: '', // Email пользователя (опционально)
+            lang: 'ru'
+        };
+
+        // Формируем URL для оплаты
+        const paymentUrl = `https://pay.freekassa.ru/?` + new URLSearchParams(params).toString();
 
         res.json({
             success: true,
-            confirmationUrl: data.confirmation.confirmation_url,
-            paymentId: data.id
+            confirmationUrl: paymentUrl,
+            paymentId: orderId
         });
 
     } catch (error) {
-        console.error('Create YooKassa payment error:', error);
+        console.error('Create Freekassa payment error:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
-// Webhook для ЮKassa
-router.post('/payment/yookassa-webhook', async (req, res) => {
+// Webhook для Freekassa
+router.post('/payment/freekassa-webhook', async (req, res) => {
     try {
         const notification = req.body;
         
-        console.log('=== YOOKASSA WEBHOOK RECEIVED ===');
+        console.log('=== FREEKASSA WEBHOOK RECEIVED ===');
         console.log('Body:', JSON.stringify(notification, null, 2));
 
-        if (notification.event === 'payment.succeeded') {
-            const payment = notification.object;
-            const paymentId = payment.id;
-            const metadata = payment.metadata;
-            
-            console.log('Payment succeeded:', paymentId);
+        // Проверяем подпись
+        // Формат: MERCHANT_ID:AMOUNT:SECRET_WORD_2:MERCHANT_ORDER_ID
+        const signString = `${notification.MERCHANT_ID}:${notification.AMOUNT}:${FREEKASSA_SECRET_WORD_2}:${notification.MERCHANT_ORDER_ID}`;
+        const expectedSign = crypto.createHash('md5').update(signString).digest('hex');
 
-            // Обновляем статус платежа
-            await dbRun(
-                `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
-                [paymentId]
-            );
-
-            // Выдаем роль beta и подписку
-            const subDuration = getPlanDuration(metadata.planType);
-            const subUntil = new Date();
-            subUntil.setDate(subUntil.getDate() + subDuration);
-            const subUntilStr = subUntil.toISOString().split('T')[0];
-
-            console.log(`Updating user ${metadata.userId} to beta until ${subUntilStr}`);
-
-            await dbRun(
-                `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
-                [subUntilStr, metadata.userId]
-            );
+        if (notification.SIGN !== expectedSign) {
+            console.error('Invalid signature!');
+            return res.send('bad sign');
         }
 
-        res.json({ success: true });
+        const orderId = notification.MERCHANT_ORDER_ID;
+        
+        console.log('Payment succeeded:', orderId);
+
+        // Получаем информацию о платеже
+        const invoice = await dbGet(
+            `SELECT * FROM invoices WHERE invoice_id = ?`,
+            [orderId]
+        );
+
+        if (!invoice) {
+            console.error('Invoice not found:', orderId);
+            return res.send('invoice not found');
+        }
+
+        // Обновляем статус платежа
+        await dbRun(
+            `UPDATE invoices SET status = 'paid', paid_at = datetime('now') WHERE invoice_id = ?`,
+            [orderId]
+        );
+
+        // Выдаем роль beta и подписку
+        const subDuration = getPlanDuration(invoice.plan_type);
+        const subUntil = new Date();
+        subUntil.setDate(subUntil.getDate() + subDuration);
+        const subUntilStr = subUntil.toISOString().split('T')[0];
+
+        console.log(`Updating user ${invoice.user_id} to beta until ${subUntilStr}`);
+
+        await dbRun(
+            `UPDATE users SET role = 'beta', sub_until = ? WHERE id = ?`,
+            [subUntilStr, invoice.user_id]
+        );
+
+        res.send('YES');
 
     } catch (error) {
-        console.error('YooKassa webhook error:', error);
-        res.status(500).json({ error: 'Webhook processing error' });
+        console.error('Freekassa webhook error:', error);
+        res.send('error');
     }
 });
