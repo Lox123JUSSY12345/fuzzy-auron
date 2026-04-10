@@ -24,8 +24,16 @@ async function initDatabase() {
   try {
     await client.query('BEGIN');
 
+    // Drop existing tables if they exist (for clean setup)
+    await client.query('DROP TABLE IF EXISTS admin_sessions CASCADE');
+    await client.query('DROP TABLE IF EXISTS promocodes CASCADE');
+    await client.query('DROP TABLE IF EXISTS invoices CASCADE');
+    await client.query('DROP TABLE IF EXISTS configs CASCADE');
+    await client.query('DROP TABLE IF EXISTS activation_keys CASCADE');
+    await client.query('DROP TABLE IF EXISTS users CASCADE');
+
     await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         login TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
@@ -46,7 +54,7 @@ async function initDatabase() {
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS activation_keys (
+      CREATE TABLE activation_keys (
         id SERIAL PRIMARY KEY,
         key_code TEXT UNIQUE NOT NULL,
         role TEXT NOT NULL,
@@ -60,7 +68,7 @@ async function initDatabase() {
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS configs (
+      CREATE TABLE configs (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
@@ -73,7 +81,7 @@ async function initDatabase() {
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS invoices (
+      CREATE TABLE invoices (
         id SERIAL PRIMARY KEY,
         invoice_id TEXT UNIQUE NOT NULL,
         user_id INTEGER NOT NULL,
@@ -87,7 +95,7 @@ async function initDatabase() {
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS promocodes (
+      CREATE TABLE promocodes (
         id SERIAL PRIMARY KEY,
         code TEXT UNIQUE NOT NULL,
         discount_percent INTEGER NOT NULL,
@@ -100,7 +108,7 @@ async function initDatabase() {
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS admin_sessions (
+      CREATE TABLE admin_sessions (
         id SERIAL PRIMARY KEY,
         session_url TEXT UNIQUE NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -109,10 +117,10 @@ async function initDatabase() {
     `);
 
     await client.query('COMMIT');
-    console.log('Database tables initialized');
+    console.log('✅ Database tables created successfully');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Error initializing database:', err);
+    console.error('❌ Error initializing database:', err);
     throw err;
   } finally {
     client.release();
