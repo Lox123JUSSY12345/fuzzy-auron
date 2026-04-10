@@ -1,5 +1,14 @@
 const { Pool } = require('pg');
 
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL not found! Please add PostgreSQL database in Railway.');
+  console.error('Steps:');
+  console.error('1. Go to Railway Dashboard');
+  console.error('2. Click "+ New" → "Database" → "Add PostgreSQL"');
+  console.error('3. Railway will automatically set DATABASE_URL');
+  process.exit(1);
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
