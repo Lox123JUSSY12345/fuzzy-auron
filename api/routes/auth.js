@@ -21,10 +21,14 @@ router.post('/signup', [
   const { login, email, password } = req.body;
 
   try {
+    console.log('Signup attempt:', { login, email });
+    
     const existingUser = await dbGet(
       'SELECT * FROM users WHERE login = ? OR email = ?',
       [login, email]
     );
+    
+    console.log('Existing user check:', existingUser ? 'Found' : 'Not found');
     
     if (existingUser) {
       return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
@@ -33,10 +37,13 @@ router.post('/signup', [
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatarUrl = `/api/v1/avatar/${Date.now()}`;
 
+    console.log('Inserting new user...');
     const result = await dbRun(
       'INSERT INTO users (login, email, password, avatar_url) VALUES (?, ?, ?, ?)',
       [login, email, hashedPassword, avatarUrl]
     );
+
+    console.log('User created with ID:', result.lastID);
 
     const token = jwt.sign({ id: result.lastID, login }, JWT_SECRET, { expiresIn: '7d' });
     
@@ -51,6 +58,7 @@ router.post('/signup', [
     });
   } catch (err) {
     console.error('Signup error:', err);
+    console.error('Error stack:', err.stack);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
