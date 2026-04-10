@@ -102,6 +102,20 @@
 
                 const data = await response.json();
                 console.log('Profile data loaded:', data);
+                
+                // Проверяем, совпадает ли пользователь в токене с сохраненным
+                const savedUser = localStorage.getItem('currentUser');
+                if (savedUser && savedUser !== data.login) {
+                    console.log('User mismatch detected, clearing old session');
+                    localStorage.removeItem(TOKEN_KEY);
+                    localStorage.removeItem('currentUser');
+                    window.location.href = '/signin';
+                    return;
+                }
+                
+                // Сохраняем текущего пользователя
+                localStorage.setItem('currentUser', data.login);
+                
                 window.PROFILE_DATA = data;
                 updateProfileUI(data);
                 
@@ -121,6 +135,7 @@
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', () => {
                     localStorage.removeItem(TOKEN_KEY);
+                    localStorage.removeItem('currentUser');
                     window.location.href = '/signin';
                 });
             }
