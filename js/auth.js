@@ -1,22 +1,16 @@
-// Глобальный API_BASE_URL
-window.API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8081/api/v1' 
-  : `${window.location.origin}/api/v1`;
+// Глобальный API_BASE_URL - теперь используем Railway API
+window.API_BASE_URL = 'https://auron-client-production-1b2e.up.railway.app';
 const API_BASE_URL = window.API_BASE_URL;
 
 const TOKEN_KEY = 'jwtToken';
 let jwtToken = localStorage.getItem(TOKEN_KEY);
 
-const setAuthToken = (token, userLogin) => {
+const setAuthToken = (token) => {
     if (token) {
         localStorage.setItem(TOKEN_KEY, token);
-        if (userLogin) {
-            localStorage.setItem('currentUser', userLogin);
-        }
         jwtToken = token;
     } else {
         localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem('currentUser');
         jwtToken = null;
     }
 };
@@ -135,7 +129,7 @@ async function handleRegistration(event) {
     }
 
     if (data.success && data.token) {
-      setAuthToken(data.token, data.user.login);
+      setAuthToken(data.token);
       window.location.href = '/profile';
     } else {
       throw new Error('Токен не получен');
@@ -186,7 +180,7 @@ const handleSignIn = async (event) => {
         }
 
         if (data.success && data.token) {
-            setAuthToken(data.token, data.user.login);
+            setAuthToken(data.token);
             window.location.href = '/profile';
         }
     } catch (error) {
@@ -304,7 +298,7 @@ const handle2FAVerification = async (event) => {
         }
 
         if (data.success && data.token) {
-            setAuthToken(data.token, data.user.login);
+            setAuthToken(data.token);
             window.location.href = '/profile';
         }
     } catch (error) {
