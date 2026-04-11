@@ -16,25 +16,49 @@
         function updateProfileUI(accountData) {
             console.log('Updating UI with data:', accountData);
             
+            if (!accountData) {
+                console.error('No account data provided!');
+                return;
+            }
+            
             const avatarUrl = accountData.avatarUrl || '/img/default-avatar.svg';
             
             const headerAvatar = document.querySelector('.header-actions .profile-avatar');
             const headerName = document.querySelector('.header-actions .profile-name');
-            if (headerAvatar) headerAvatar.src = avatarUrl;
-            if (headerName) headerName.textContent = accountData.login || '';
+            if (headerAvatar) {
+                headerAvatar.src = avatarUrl;
+                console.log('Set header avatar to:', avatarUrl);
+            } else {
+                console.warn('Header avatar element not found');
+            }
+            if (headerName) {
+                headerName.textContent = accountData.login || '';
+                console.log('Set header name to:', accountData.login);
+            } else {
+                console.warn('Header name element not found');
+            }
 
             const profileAvatar = document.querySelector('.upper-info .avatar');
             const profileName = document.querySelector('.text .name');
             const profileId = document.querySelector('.uid .id');
             
-            if (profileAvatar) profileAvatar.src = avatarUrl;
+            if (profileAvatar) {
+                profileAvatar.src = avatarUrl;
+                console.log('Set profile avatar to:', avatarUrl);
+            } else {
+                console.warn('Profile avatar element not found');
+            }
             if (profileName) {
                 profileName.textContent = accountData.login || '';
                 console.log('Set name to:', accountData.login);
+            } else {
+                console.warn('Profile name element not found');
             }
             if (profileId) {
                 profileId.textContent = accountData.id || '';
                 console.log('Set ID to:', accountData.id);
+            } else {
+                console.warn('Profile ID element not found');
             }
 
             const roleEl = document.querySelector('.role');
@@ -87,7 +111,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM loaded, starting profile load...');
+            console.log('JWT Token:', jwtToken ? 'Present' : 'Missing');
+            console.log('API Base URL:', API_BASE_URL);
+            
+            if (!jwtToken) {
+                console.error('No JWT token found, redirecting to signin');
+                window.location.href = '/signin';
+                return;
+            }
+            
             try {
+                console.log('Fetching account details...');
                 const response = await fetch(`${API_BASE_URL}/account/details`, {
                     method: 'GET',
                     headers: {
@@ -96,6 +131,8 @@
                     credentials: 'include'
                 });
 
+                console.log('Response status:', response.status);
+
                 if (!response.ok) {
                     throw new Error('Не авторизован');
                 }
@@ -103,18 +140,19 @@
                 const data = await response.json();
                 console.log('Profile data loaded:', data);
                 
-                // Проверяем, совпадает ли пользователь в токене с сохраненным
+                // Сохраняем текущего пользователя для будущих проверок
                 const savedUser = localStorage.getItem('currentUser');
-                if (savedUser && savedUser !== data.login) {
+                if (!savedUser) {
+                    // Первый вход - просто сохраняем
+                    localStorage.setItem('currentUser', data.login);
+                } else if (savedUser !== data.login) {
+                    // Другой пользователь - очищаем старую сессию
                     console.log('User mismatch detected, clearing old session');
                     localStorage.removeItem(TOKEN_KEY);
                     localStorage.removeItem('currentUser');
                     window.location.href = '/signin';
                     return;
                 }
-                
-                // Сохраняем текущего пользователя
-                localStorage.setItem('currentUser', data.login);
                 
                 window.PROFILE_DATA = data;
                 updateProfileUI(data);
