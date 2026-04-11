@@ -29,6 +29,62 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/v1/auth', authRoutes);
 console.log('Auth routes registered at /api/v1/auth');
+
+// Legacy route for loader compatibility
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password, email, login, statement } = req.body;
+    const loginField = username || email || login || statement;
+    
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
+    
+    const user = await dbGet(
+      'SELECT * FROM users WHERE login = ? OR email = ?',
+      [loginField, loginField]
+    );
+
+    if (!user) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials',
+        reason: 'Invalid credentials'
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials',
+        reason: 'Invalid credentials'
+      });
+    }
+
+    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        login: user.login,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    console.error('Legacy login error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: 'Server error'
+    });
+  }
+});
+
 app.use('/api/v1', accountRoutes);
 app.use('/api/v1', configsRoutes);
 app.use('/api/v1', paymentRoutes);
