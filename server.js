@@ -26,6 +26,11 @@ app.use('/api/v1', configsRoutes);
 app.use('/api/v1', paymentRoutes);
 app.use('/api/v1', adminRoutes);
 
+// Test endpoint
+app.get('/api/v1/test', (req, res) => {
+  res.json({ status: 'ok', message: 'API is working' });
+});
+
 // Middleware для проверки админ-сессии
 app.get('/:sessionUrl.html', async (req, res, next) => {
   const sessionUrl = req.params.sessionUrl;
