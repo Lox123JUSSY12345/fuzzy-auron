@@ -1,11 +1,18 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+
+console.log('Loading routes...');
 const authRoutes = require('./api/routes/auth');
+console.log('Auth routes loaded');
 const accountRoutes = require('./api/routes/account');
+console.log('Account routes loaded');
 const configsRoutes = require('./api/routes/configs');
+console.log('Configs routes loaded');
 const paymentRoutes = require('./api/routes/payment');
+console.log('Payment routes loaded');
 const adminRoutes = require('./api/routes/admin');
+console.log('Admin routes loaded');
 const { initDatabase } = require('./api/database/db');
 const { dbGet, dbRun } = require('./api/database/db-helper');
 
@@ -21,6 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/v1/auth', authRoutes);
+console.log('Auth routes registered at /api/v1/auth');
 app.use('/api/v1', accountRoutes);
 app.use('/api/v1', configsRoutes);
 app.use('/api/v1', paymentRoutes);
