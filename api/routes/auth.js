@@ -1,154 +1,325 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const speakeasy = require('speakeasy');
-const { body, validationResult } = require('express-validator');
-const { dbGet, dbRun } = require('../database/db-helper');
+// Глобальный API_BASE_URL - теперь используем Railway API
+window.API_BASE_URL = 'https://auron-client-production-1b2e.up.railway.app';
+const API_BASE_URL = window.API_BASE_URL;
 
-const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
+const TOKEN_KEY = 'jwtToken';
+let jwtToken = localStorage.getItem(TOKEN_KEY);
 
-router.post('/signup', [
-  body('login').trim().isLength({ min: 3, max: 20 }).withMessage('Логин должен быть от 3 до 20 символов'),
-  body('email').isEmail().withMessage('Некорректный email'),
-  body('password').isLength({ min: 6 }).withMessage('Пароль должен быть минимум 6 символов')
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ error: errors.array()[0].msg });
-  }
-
-  const { login, email, password } = req.body;
-
-  try {
-    console.log('Signup attempt:', { login, email });
-    
-    const existingUser = await dbGet(
-      'SELECT * FROM users WHERE login = ? OR email = ?',
-      [login, email]
-    );
-    
-    console.log('Existing user check:', existingUser ? 'Found' : 'Not found');
-    
-    if (existingUser) {
-      return res.status(400).json({ error: 'Пользователь с таким логином или email уже существует' });
+const setAuthToken = (token) => {
+    if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        jwtToken = token;
+    } else {
+        localStorage.removeItem(TOKEN_KEY);
+        jwtToken = null;
     }
+};
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const avatarUrl = `/api/v1/avatar/${Date.now()}`;
+const apiRequest = async (endpoint, method = 'GET', body = null, authRequired = true) => {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
 
-    console.log('Inserting new user...');
-    const result = await dbRun(
-      'INSERT INTO users (login, email, password, avatar_url) VALUES (?, ?, ?, ?)',
-      [login, email, hashedPassword, avatarUrl]
-    );
-
-    console.log('User created with ID:', result.lastID);
-
-    const token = jwt.sign({ id: result.lastID, login }, JWT_SECRET, { expiresIn: '7d' });
-    
-    res.status(201).json({
-      success: true,
-      token,
-      user: {
-        id: result.lastID,
-        login,
-        email
-      }
-    });
-  } catch (err) {
-    console.error('Signup error:', err);
-    console.error('Error stack:', err.stack);
-    res.status(500).json({ error: 'Ошибка сервера' });
+  if (authRequired && jwtToken) {
+    headers['Authorization'] = `Bearer ${jwtToken}`;
   }
+
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : null,
+    credentials: 'include',
+    mode: 'cors',
+  });
+
+  let data = null;
+  try { 
+    const text = await res.text();
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = text;
+      }
+    }
+  } catch (e) { 
+    console.error('Error reading response', e); 
+  }
+
+  if (!res.ok) {
+    const msg = (data && data.message) ? data.message : `API request failed (${res.status})`;
+    const err = new Error(msg);
+    err.response = res;
+    err.data = data;
+    throw err;
+  }
+
+  if (data && data.error) {
+    const msg = data.error || 'API request failed';
+    const err = new Error(msg);
+    err.response = res;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+};
+
+const verifyToken = async () => {
+    return true;
+};
+
+const checkAuth = async () => {
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const protectedPages = ['profile'];
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    if (protectedPages.includes(currentPage)) {
+        checkAuth();
+    }
 });
 
-router.post('/signin', async (req, res) => {
-  const { statement, password } = req.body;
+const getValueByIds = (...ids) => {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) return el.value;
+  }
+  return '';
+};
+
+let hCaptchaToken = null;
+
+function onCaptchaVerify(token) {
+  hCaptchaToken = token;
+}
+
+function onCaptchaExpired() {
+  hCaptchaToken = null;
+}
+
+async function handleRegistration(event) {
+  if (event && event.preventDefault) event.preventDefault();
+
+  const login = getValueByIds('login', 'username', 'user');
+  const email = getValueByIds('email', 'mail');
+  const password = getValueByIds('pass', 'password', 'pwd');
+
+  const termsEl = document.getElementById('terms');
+  if (termsEl && !termsEl.checked) {
+    alert('Подтвердите соглашение с правилами.');
+    return;
+  }
 
   try {
-    const user = await dbGet(
-      'SELECT * FROM users WHERE login = ? OR email = ?',
-      [statement, statement]
-    );
-
-    if (!user) {
-      return res.status(401).json({ reason: 'Неверный логин или пароль' });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({ reason: 'Неверный логин или пароль' });
-    }
-
-    if (user.gauth_enabled) {
-      return res.status(200).json({ 
-        reason: 'Введите код из Google Authenticator',
-        requires2FA: true 
-      });
-    }
-
-    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
-    
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        login: user.login,
-        email: user.email
-      }
+    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ login, email, password })
     });
-  } catch (err) {
-    console.error('Signin error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Ошибка при регистрации');
+    }
+
+    if (data.success && data.token) {
+      setAuthToken(data.token);
+      window.location.href = '/profile';
+    } else {
+      throw new Error('Токен не получен');
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    alert(error.message || 'Ошибка при регистрации');
   }
+}
+
+window.onCaptchaVerify = onCaptchaVerify;
+window.onCaptchaExpired = onCaptchaExpired;
+
+const handleSignIn = async (event) => {
+    event.preventDefault();
+    const signinError = document.getElementById('signinError');
+    if (signinError) signinError.textContent = '';
+
+    const login = document.getElementById('login').value;
+    const password = document.getElementById('pass').value;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/signin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            credentials: 'include',
+            body: new URLSearchParams({
+                statement: login,
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.requires2FA) {
+            show2FAField(login);
+            if (signinError) {
+                signinError.textContent = data.reason;
+                signinError.style.color = '#4CAF50';
+            }
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(data.reason || data.error || 'Ошибка при входе');
+        }
+
+        if (data.success && data.token) {
+            setAuthToken(data.token);
+            window.location.href = '/profile';
+        }
+    } catch (error) {
+        console.error('Ошибка входа:', error);
+        if (signinError) {
+            signinError.textContent = error.message;
+            signinError.style.color = '#f44336';
+        } else {
+            alert(error.message);
+        }
+    }
+};
+
+let currentLoginFor2FA = '';
+
+const show2FAField = (login) => {
+    currentLoginFor2FA = login;
+    
+    const form = document.getElementById('signinForm');
+    if (form) {
+        form.style.display = 'none';
+    }
+
+    let twoFAContainer = document.getElementById('twoFAContainer');
+    if (!twoFAContainer) {
+        twoFAContainer = document.createElement('div');
+        twoFAContainer.id = 'twoFAContainer';
+        twoFAContainer.className = 'twofa-container';
+        
+        const formContainer = document.querySelector('.form-container');
+        if (formContainer) {
+            formContainer.appendChild(twoFAContainer);
+        }
+    }
+
+    twoFAContainer.innerHTML = `
+        <div class="text">
+            <h2>Подтверждение 2FA</h2>
+            <p>Введите код из Google Authenticator</p>
+        </div>
+        <form class="form" id="twoFAForm" onsubmit="handle2FAVerification(event)">
+            <div class="input-group">
+                <label for="twoFACode">Код из Google Authenticator</label>
+                <div class="input-wrapper">
+                    <input type="text" id="twoFACode" name="twoFACode" placeholder="Введите 6-значный код" maxlength="6" required autocomplete="off">
+                </div>
+            </div>
+            <div id="twoFAError" class="error-message"></div>
+            <button type="submit" class="submit-btn">Подтвердить</button>
+            <div class="account" style="margin-top: 15px;">
+                <button type="button" onclick="cancel2FA()" class="cancel-btn" style="background: transparent; border: none; color: #999; cursor: pointer; text-decoration: underline;">Отмена</button>
+            </div>
+        </form>
+    `;
+
+    setTimeout(() => {
+        const codeInput = document.getElementById('twoFACode');
+        if (codeInput) {
+            codeInput.focus();
+        }
+    }, 100);
+};
+
+const cancel2FA = () => {
+    const twoFAContainer = document.getElementById('twoFAContainer');
+    if (twoFAContainer) {
+        twoFAContainer.remove();
+    }
+    
+    const form = document.getElementById('signinForm');
+    if (form) {
+        form.style.display = 'block';
+    }
+    
+    currentLoginFor2FA = '';
+    
+    const signinError = document.getElementById('signinError');
+    if (signinError) {
+        signinError.textContent = '';
+    }
+};
+
+const handle2FAVerification = async (event) => {
+    event.preventDefault();
+    const twoFAError = document.getElementById('twoFAError');
+    if (twoFAError) twoFAError.textContent = '';
+
+    const code = document.getElementById('twoFACode').value;
+
+    if (!code || code.length !== 6) {
+        if (twoFAError) {
+            twoFAError.textContent = 'Введите 6-значный код';
+            twoFAError.style.color = '#f44336';
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-2fa`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            credentials: 'include',
+            body: new URLSearchParams({
+                statement: currentLoginFor2FA,
+                code: code
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Ошибка при верификации');
+        }
+
+        if (data.success && data.token) {
+            setAuthToken(data.token);
+            window.location.href = '/profile';
+        }
+    } catch (error) {
+        console.error('Ошибка верификации 2FA:', error);
+        if (twoFAError) {
+            twoFAError.textContent = error.message;
+            twoFAError.style.color = '#f44336';
+        }
+    }
+};
+
+window.handle2FAVerification = handle2FAVerification;
+window.cancel2FA = cancel2FA;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const signinForm = document.getElementById('signinForm');
+    if (signinForm) {
+        signinForm.addEventListener('submit', handleSignIn);
+    }
 });
 
-router.post('/verify-2fa', async (req, res) => {
-  const { statement, code } = req.body;
-
-  try {
-    const user = await dbGet(
-      'SELECT * FROM users WHERE login = ? OR email = ?',
-      [statement, statement]
-    );
-
-    if (!user) {
-      return res.status(401).json({ error: 'Пользователь не найден' });
-    }
-
-    if (!user.gauth_enabled || !user.gauth_secret) {
-      return res.status(400).json({ error: '2FA не настроен' });
-    }
-
-    const verified = speakeasy.totp.verify({
-      secret: user.gauth_secret,
-      encoding: 'base32',
-      token: code,
-      window: 2
-    });
-
-    if (!verified) {
-      return res.status(401).json({ error: 'Неверный код' });
-    }
-
-    const token = jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
-    
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        login: user.login,
-        email: user.email
-      }
-    });
-  } catch (err) {
-    console.error('2FA verification error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-module.exports = router;
+window.handleRegistration = handleRegistration;
+window.verifyToken = verifyToken;
+window.setAuthToken = setAuthToken;
