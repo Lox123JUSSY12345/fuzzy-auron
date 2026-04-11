@@ -1,5 +1,7 @@
-// Глобальный API_BASE_URL - теперь используем Railway API
-window.API_BASE_URL = 'https://auron-client-production-1b2e.up.railway.app';
+// Глобальный API_BASE_URL
+window.API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:8081/api/v1' 
+  : `${window.location.origin}/api/v1`;
 const API_BASE_URL = window.API_BASE_URL;
 
 const TOKEN_KEY = 'jwtToken';
