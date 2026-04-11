@@ -302,14 +302,17 @@ app.get('/api/test', (req, res) => {
   res.json({ 
     status: 'API работает!',
     timestamp: new Date().toISOString(),
-    endpoints: [
-      'POST /api/auth/login',
-      'POST /api/auth/register',
-      'POST /api/signin',
-      'POST /api/login',
-      'GET /api/test',
-      'GET /api/users'
-    ]
+endpoints: [
+  'POST /api/auth/login',
+  'POST /api/auth/register',
+  'POST /api/v1/auth/signin',    // ← ДОБАВЬ ЭТУ СТРОКУ
+  'POST /api/v1/auth/signup',    // ← ДОБАВЬ ЭТУ СТРОКУ
+  'POST /api/signin',
+  'POST /api/login',
+  'GET /api/test',
+  'GET /api/users'
+]
+
   });
 });
 
